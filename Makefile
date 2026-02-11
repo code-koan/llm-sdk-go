@@ -6,7 +6,7 @@ lint:
 
 # Run all tests
 test: lint
-	go test -v -race ./...
+	go test -race ./...
 
 # Run tests without linting (faster)
 test-only:

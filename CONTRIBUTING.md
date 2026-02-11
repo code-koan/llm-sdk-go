@@ -42,6 +42,37 @@ export OPENAI_API_KEY="sk-..."
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
+## Version Management
+
+The library version is a `const` in `sdk/version.go`. This is the single source of truth.
+
+The version is used in the `User-Agent` header for API requests using the `platform` provider: `go-any-llm/{version}`
+
+### For Maintainers
+
+When creating a release:
+
+1. **Create a release branch and bump the version const** in `sdk/version.go`:
+   ```bash
+   git checkout -b release/v0.8.0
+   # Edit sdk/version.go: const Version = "v0.8.0"
+   git add sdk/version.go
+   git commit -m "release: v0.8.0"
+   git push -u origin release/v0.8.0
+   ```
+
+2. **Create a PR** and merge into `main`.
+
+3. **Tag the release** from `main` after the PR is merged:
+   ```bash
+   git checkout main
+   git pull
+   git tag -a v0.8.0 -m "Release v0.8.0"
+   git push origin v0.8.0
+   ```
+
+A CI workflow (`.github/workflows/version.yaml`) validates that the pushed tag matches the `Version` const. If they differ, the workflow deletes the mismatched tag and fails the job.
+
 ## Project Structure
 
 ```
