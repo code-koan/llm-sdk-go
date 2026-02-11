@@ -28,6 +28,7 @@ var ProviderModelMap = map[string]string{
 	"xai":        "grok-beta",
 	"cerebras":   "llama3.1-8b",
 	"openrouter": "meta-llama/llama-3.1-8b-instruct",
+	"llamacpp":   "Qwen2.5-7B-Instruct",
 }
 
 // ProviderReasoningModelMap maps providers to reasoning-capable models.

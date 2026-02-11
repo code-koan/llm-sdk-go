@@ -282,6 +282,7 @@ for _, model := range models.Data {
 |  DeepSeek  |      ✅      |      ✅      |      ✅ |      ✅      |      ❌       |
 |   Gemini   |      ✅      |      ✅      |      ✅ |      ✅      |      ✅       |
 |    Groq    |      ✅      |      ✅      |      ✅ |      ❌      |      ❌       |
+|  llama.cpp  |      ✅      |      ✅      |      ✅ |      ❌      |      ✅       |
 | Llamafile  |      ✅      |      ✅      |      ✅ |      ❌      |      ✅       |
 |  Mistral   |      ✅      |      ✅      |      ✅ |      ✅      |      ✅       |
 |   Ollama   |      ✅      |      ✅      |      ✅ |      ✅      |      ✅       |
