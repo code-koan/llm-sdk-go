@@ -1,11 +1,9 @@
-module github.com/mozilla-ai/any-llm-go
+module github.com/code-koan/llm-sdk-go
 
 go 1.25
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.26.0
-	github.com/google/uuid v1.6.0
-	github.com/mozilla-ai/any-llm-platform-client-go v0.0.1
 	github.com/ollama/ollama v0.17.6
 	github.com/openai/openai-go v1.12.0
 	github.com/stretchr/testify v1.11.1
@@ -22,6 +20,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/kr/pretty v0.3.0 // indirect

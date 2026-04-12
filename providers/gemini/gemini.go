@@ -1,4 +1,4 @@
-// Package gemini provides a Google Gemini provider implementation for any-llm.
+// Package gemini provides a Google Gemini provider implementation for llm-sdk.
 package gemini
 
 import (
@@ -15,9 +15,9 @@ import (
 
 	"google.golang.org/genai"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // Provider configuration constants.
@@ -28,7 +28,7 @@ const (
 )
 
 // Default thinking budgets for reasoning effort levels.
-// These match the Python any-llm library.
+// These match the Python llm-sdk library.
 const (
 	thinkingBudgetHigh   int32 = 24576
 	thinkingBudgetLow    int32 = 1024
@@ -534,7 +534,7 @@ func convertAssistantMessage(msg providers.Message) *genai.Content {
 		//
 		// This applies unconditionally to all models, including non-thinking
 		// ones. In testing, non-thinking models accept the field without issue.
-		// The Python any-llm library follows the same pattern, so we mirror it
+		// The Python llm-sdk library follows the same pattern, so we mirror it
 		// here. Revisit if this causes problems with specific models.
 		//
 		// NOTE: The Go SDK declares Part.ThoughtSignature as []byte, and Go's

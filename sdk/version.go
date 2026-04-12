@@ -1,4 +1,4 @@
-// Package sdk provides metadata for the any-llm-go library.
+// Package sdk provides metadata for the llm-sdk-go library.
 package sdk
 
 // Version is the library version string.

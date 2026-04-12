@@ -1,4 +1,4 @@
-// Package openai provides an OpenAI provider implementation for any-llm.
+// Package openai provides an OpenAI provider implementation for llm-sdk.
 // It also exports a base provider for other OpenAI-compatible services.
 package openai
 
@@ -11,9 +11,9 @@ import (
 	"github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/shared"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // OpenAI API error codes.

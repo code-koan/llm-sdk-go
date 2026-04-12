@@ -1,8 +1,8 @@
 package openai
 
 import (
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // Provider configuration constants.

@@ -8,8 +8,8 @@ The completion API is the primary way to interact with LLM providers.
 import (
     "context"
 
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 provider, err := openai.New()
@@ -19,10 +19,10 @@ if err != nil {
 
 ctx := context.Background()
 
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "gpt-4o-mini",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Hello!"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Hello!"},
     },
 })
 ```
@@ -51,11 +51,11 @@ Performs a chat completion request.
 **Example:**
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "claude-3-5-haiku-latest",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleSystem, Content: "You are a helpful assistant."},
-        {Role: anyllm.RoleUser, Content: "What is Go?"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleSystem, Content: "You are a helpful assistant."},
+        {Role: llmsdk.RoleUser, Content: "What is Go?"},
     },
 })
 if err != nil {
@@ -147,11 +147,11 @@ const (
 For messages with images or other content types:
 
 ```go
-message := anyllm.Message{
-    Role: anyllm.RoleUser,
-    Content: []anyllm.ContentPart{
+message := llmsdk.Message{
+    Role: llmsdk.RoleUser,
+    Content: []llmsdk.ContentPart{
         {Type: "text", Text: "What's in this image?"},
-        {Type: "image_url", ImageURL: &anyllm.ImageURL{
+        {Type: "image_url", ImageURL: &llmsdk.ImageURL{
             URL: "https://example.com/image.jpg",
         }},
     },
@@ -200,10 +200,10 @@ const (
 ### Defining Tools
 
 ```go
-tools := []anyllm.Tool{
+tools := []llmsdk.Tool{
     {
         Type: "function",
-        Function: anyllm.Function{
+        Function: llmsdk.Function{
             Name:        "get_weather",
             Description: "Get the current weather for a location",
             Parameters: map[string]any{
@@ -224,28 +224,28 @@ tools := []anyllm.Tool{
 ### Processing Tool Calls
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model:    "gpt-4o-mini",
     Messages: messages,
     Tools:    tools,
 })
 
-if response.Choices[0].FinishReason == anyllm.FinishReasonToolCalls {
+if response.Choices[0].FinishReason == llmsdk.FinishReasonToolCalls {
     for _, tc := range response.Choices[0].Message.ToolCalls {
         // Process tool call.
         result := executeFunction(tc.Function.Name, tc.Function.Arguments)
 
         // Add tool result to messages.
         messages = append(messages, response.Choices[0].Message)
-        messages = append(messages, anyllm.Message{
-            Role:       anyllm.RoleTool,
+        messages = append(messages, llmsdk.Message{
+            Role:       llmsdk.RoleTool,
             Content:    result,
             ToolCallID: tc.ID,
         })
     }
 
     // Continue conversation with tool results.
-    response, err = provider.Completion(ctx, anyllm.CompletionParams{
+    response, err = provider.Completion(ctx, llmsdk.CompletionParams{
         Model:    "gpt-4o-mini",
         Messages: messages,
         Tools:    tools,

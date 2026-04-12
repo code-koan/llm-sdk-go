@@ -1,4 +1,4 @@
-// Package deepseek provides a DeepSeek provider implementation for any-llm.
+// Package deepseek provides a DeepSeek provider implementation for llm-sdk.
 // DeepSeek exposes an OpenAI-compatible API with some differences in JSON mode handling.
 package deepseek
 
@@ -11,9 +11,9 @@ import (
 	oaisdk "github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/providers"
-	"github.com/mozilla-ai/any-llm-go/providers/openai"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Provider configuration constants.

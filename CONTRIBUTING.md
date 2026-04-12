@@ -1,6 +1,6 @@
-# Contributing to any-llm-go
+# Contributing to llm-sdk-go
 
-Thank you for your interest in contributing to any-llm-go! This guide will help you get started.
+Thank you for your interest in contributing to llm-sdk-go! This guide will help you get started.
 
 ## Development Setup
 
@@ -15,8 +15,8 @@ Thank you for your interest in contributing to any-llm-go! This guide will help 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/mozilla-ai/any-llm-go.git
-   cd any-llm-go
+   git clone https://github.com/code-koan/llm-sdk-go.git
+   cd llm-sdk-go
    ```
 
 2. **Install dependencies:**
@@ -46,7 +46,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 The library version is a `const` in `sdk/version.go`. This is the single source of truth.
 
-The version is used in the `User-Agent` header for API requests using the `platform` provider: `go-any-llm/{version}`
+The version is used in the `User-Agent` header for API requests: `llm-sdk-go/{version}`
 
 ### For Maintainers
 
@@ -76,8 +76,8 @@ A CI workflow (`.github/workflows/version.yaml`) validates that the pushed tag m
 ## Project Structure
 
 ```
-any-llm-go/
-├── anyllm.go           # Root package - re-exports types for simple imports
+llm-sdk-go/
+├── llmsdk.go           # Root package - re-exports types for simple imports
 ├── config/config.go    # Functional options pattern for configuration
 ├── errors/errors.go    # Normalized error types with sentinel errors
 ├── providers/
@@ -146,9 +146,9 @@ If the provider is fully OpenAI-compatible with no quirks, the entire implementa
 package newprovider
 
 import (
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/providers"
-	"github.com/mozilla-ai/any-llm-go/providers/openai"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Provider configuration constants.
@@ -269,9 +269,9 @@ import (
 
 	"github.com/newprovider/sdk-go"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // Provider configuration constants.
@@ -402,7 +402,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/mozilla-ai/any-llm-go/config"
+	"github.com/code-koan/llm-sdk-go/config"
 )
 
 func TestNew(t *testing.T) {

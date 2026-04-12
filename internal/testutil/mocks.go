@@ -3,7 +3,7 @@ package testutil
 import (
 	"context"
 
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // MockProvider is a mock implementation of the Provider interface for testing.

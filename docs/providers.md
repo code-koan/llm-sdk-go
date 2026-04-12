@@ -1,6 +1,6 @@
 # Supported Providers
 
-any-llm-go supports multiple LLM providers through a unified interface. Each provider is implemented as a separate package.
+llm-sdk-go supports multiple LLM providers through a unified interface. Each provider is implemented as a separate package.
 
 ## Provider Status
 
@@ -32,15 +32,15 @@ any-llm-go supports multiple LLM providers through a unified interface. Each pro
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/anthropic"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/anthropic"
 )
 
 // Using environment variable (ANTHROPIC_API_KEY).
 provider, err := anthropic.New()
 
 // Or with explicit API key.
-provider, err := anthropic.New(anyllm.WithAPIKey("sk-ant-..."))
+provider, err := anthropic.New(llmsdk.WithAPIKey("sk-ant-..."))
 ```
 
 **Environment Variable:** `ANTHROPIC_API_KEY`
@@ -56,10 +56,10 @@ provider, err := anthropic.New(anyllm.WithAPIKey("sk-ant-..."))
 Anthropic's Claude models support extended thinking for complex reasoning tasks:
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "claude-sonnet-4-20250514",
     Messages: messages,
-    ReasoningEffort: anyllm.ReasoningEffortMedium, // low, medium, or high
+    ReasoningEffort: llmsdk.ReasoningEffortMedium, // low, medium, or high
 })
 
 // Access the thinking content.
@@ -72,15 +72,15 @@ if response.Choices[0].Message.Reasoning != nil {
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/deepseek"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/deepseek"
 )
 
 // Using environment variable (DEEPSEEK_API_KEY).
 provider, err := deepseek.New()
 
 // Or with explicit API key.
-provider, err := deepseek.New(anyllm.WithAPIKey("sk-..."))
+provider, err := deepseek.New(llmsdk.WithAPIKey("sk-..."))
 ```
 
 **Environment Variable:** `DEEPSEEK_API_KEY`
@@ -94,10 +94,10 @@ provider, err := deepseek.New(anyllm.WithAPIKey("sk-..."))
 DeepSeek R1 supports extended thinking for complex reasoning tasks:
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "deepseek-reasoner",
     Messages: messages,
-    ReasoningEffort: anyllm.ReasoningEffortMedium,
+    ReasoningEffort: llmsdk.ReasoningEffortMedium,
 })
 
 if response.Choices[0].Message.Reasoning != nil {
@@ -113,15 +113,15 @@ DeepSeek doesn't support `json_schema` response format directly. The provider au
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/gemini"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/gemini"
 )
 
 // Using environment variable (GEMINI_API_KEY or GOOGLE_API_KEY).
 provider, err := gemini.New()
 
 // Or with explicit API key.
-provider, err := gemini.New(anyllm.WithAPIKey("your-key"))
+provider, err := gemini.New(llmsdk.WithAPIKey("your-key"))
 ```
 
 **Environment Variables:** `GEMINI_API_KEY` or `GOOGLE_API_KEY`
@@ -139,10 +139,10 @@ provider, err := gemini.New(anyllm.WithAPIKey("your-key"))
 Gemini models support extended thinking for complex reasoning tasks:
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "gemini-3-flash-preview",
     Messages: messages,
-    ReasoningEffort: anyllm.ReasoningEffortMedium, // low, medium, or high
+    ReasoningEffort: llmsdk.ReasoningEffortMedium, // low, medium, or high
 })
 
 // Access the thinking content.
@@ -157,15 +157,15 @@ Groq provides fast inference through their cloud API. It exposes an OpenAI-compa
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/groq"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/groq"
 )
 
 // Using environment variable (GROQ_API_KEY).
 provider, err := groq.New()
 
 // Or with explicit API key.
-provider, err := groq.New(anyllm.WithAPIKey("gsk_..."))
+provider, err := groq.New(llmsdk.WithAPIKey("gsk_..."))
 ```
 
 **Environment Variable:** `GROQ_API_KEY`
@@ -179,10 +179,10 @@ provider, err := groq.New(anyllm.WithAPIKey("gsk_..."))
 
 ```go
 provider, _ := groq.New()
-resp, err := provider.Completion(ctx, anyllm.CompletionParams{
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "llama-3.1-8b-instant",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Hello!"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Hello!"},
     },
 })
 ```
@@ -191,15 +191,15 @@ resp, err := provider.Completion(ctx, anyllm.CompletionParams{
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/mistral"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/mistral"
 )
 
 // Using environment variable (MISTRAL_API_KEY).
 provider, err := mistral.New()
 
 // Or with explicit API key.
-provider, err := mistral.New(anyllm.WithAPIKey("your-key"))
+provider, err := mistral.New(llmsdk.WithAPIKey("your-key"))
 ```
 
 **Environment Variable:** `MISTRAL_API_KEY`
@@ -220,10 +220,10 @@ provider, err := mistral.New(anyllm.WithAPIKey("your-key"))
 
 ```go
 provider, _ := mistral.New()
-resp, err := provider.Completion(ctx, anyllm.CompletionParams{
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "mistral-small-latest",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Hello!"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Hello!"},
     },
 })
 ```
@@ -232,7 +232,7 @@ resp, err := provider.Completion(ctx, anyllm.CompletionParams{
 
 ```go
 provider, _ := mistral.New()
-resp, err := provider.Embedding(ctx, anyllm.EmbeddingParams{
+resp, err := provider.Embedding(ctx, llmsdk.EmbeddingParams{
     Model: "mistral-embed",
     Input: "Hello, world!",
 })
@@ -244,15 +244,15 @@ Llamafile is a single-file executable that bundles a model with llama.cpp for ea
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/llamafile"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/llamafile"
 )
 
 // Using default settings (localhost:8080/v1).
 provider, err := llamafile.New()
 
 // Or with custom base URL.
-provider, err := llamafile.New(anyllm.WithBaseURL("http://localhost:8081/v1"))
+provider, err := llamafile.New(llmsdk.WithBaseURL("http://localhost:8081/v1"))
 ```
 
 **Environment Variable:** `LLAMAFILE_BASE_URL` (optional, defaults to `http://localhost:8080/v1`)
@@ -272,10 +272,10 @@ chmod +x llava-v1.5-7b-q4.llamafile
 
 ```go
 provider, _ := llamafile.New()
-resp, err := provider.Completion(ctx, anyllm.CompletionParams{
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "LLaMA_CPP", // Llamafile uses "LLaMA_CPP" as the model name.
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Hello!"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Hello!"},
     },
 })
 ```
@@ -284,7 +284,7 @@ resp, err := provider.Completion(ctx, anyllm.CompletionParams{
 
 ```go
 provider, _ := llamafile.New()
-chunks, errs := provider.CompletionStream(ctx, anyllm.CompletionParams{
+chunks, errs := provider.CompletionStream(ctx, llmsdk.CompletionParams{
     Model: "LLaMA_CPP",
     Messages: messages,
 })
@@ -313,15 +313,15 @@ Ollama is a local LLM server that allows you to run models on your own hardware.
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/ollama"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/ollama"
 )
 
 // Using default settings (localhost:11434).
 provider, err := ollama.New()
 
 // Or with custom base URL.
-provider, err := ollama.New(anyllm.WithBaseURL("http://localhost:11435"))
+provider, err := ollama.New(llmsdk.WithBaseURL("http://localhost:11435"))
 ```
 
 **Environment Variable:** `OLLAMA_HOST` (optional, defaults to `http://localhost:11434`)
@@ -337,10 +337,10 @@ provider, err := ollama.New(anyllm.WithBaseURL("http://localhost:11435"))
 Ollama supports extended thinking for models that support it:
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "deepseek-r1",
     Messages: messages,
-    ReasoningEffort: anyllm.ReasoningEffortMedium,
+    ReasoningEffort: llmsdk.ReasoningEffortMedium,
 })
 
 if response.Choices[0].Message.Reasoning != nil {
@@ -352,7 +352,7 @@ if response.Choices[0].Message.Reasoning != nil {
 
 ```go
 provider, _ := ollama.New()
-resp, err := provider.Embedding(ctx, anyllm.EmbeddingParams{
+resp, err := provider.Embedding(ctx, llmsdk.EmbeddingParams{
     Model: "nomic-embed-text",
     Input: "Hello, world!",
 })
@@ -374,15 +374,15 @@ llama.cpp offers a local server compatible with the OpenAI API. No API key is re
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/llamacpp"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/llamacpp"
 )
 
 // Using default settings (localhost:8080).
 provider, err := llamacpp.New()
 
 // Or with custom base URL.
-provider, err := llamacpp.New(anyllm.WithBaseURL("http://localhost:9090/v1"))
+provider, err := llamacpp.New(llmsdk.WithBaseURL("http://localhost:9090/v1"))
 ```
 
 **Popular Models:**
@@ -395,10 +395,10 @@ provider, err := llamacpp.New(anyllm.WithBaseURL("http://localhost:9090/v1"))
 llama.cpp supports reasoning for models that provide it (like DeepSeek-R1 GGUF):
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "LLaMA_CPP",
     Messages: messages,
-    ReasoningEffort: anyllm.ReasoningEffortMedium,
+    ReasoningEffort: llmsdk.ReasoningEffortMedium,
 })
 
 if response.Choices[0].Message.Reasoning != nil {
@@ -410,7 +410,7 @@ if response.Choices[0].Message.Reasoning != nil {
 
 ```go
 provider, _ := llamacpp.New()
-resp, err := provider.Embedding(ctx, anyllm.EmbeddingParams{
+resp, err := provider.Embedding(ctx, llmsdk.EmbeddingParams{
     Model: "LLaMA_CPP",
     Input: "Hello, world!",
 })
@@ -430,20 +430,20 @@ for _, model := range models.Data {
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Using environment variable (OPENAI_API_KEY).
 provider, err := openai.New()
 
 // Or with explicit API key.
-provider, err := openai.New(anyllm.WithAPIKey("sk-..."))
+provider, err := openai.New(llmsdk.WithAPIKey("sk-..."))
 
 // Or with custom base URL (for Azure, proxies, etc.).
 provider, err := openai.New(
-    anyllm.WithAPIKey("your-key"),
-    anyllm.WithBaseURL("https://your-endpoint.openai.azure.com"),
+    llmsdk.WithAPIKey("your-key"),
+    llmsdk.WithBaseURL("https://your-endpoint.openai.azure.com"),
 )
 ```
 
@@ -466,15 +466,15 @@ z.ai provides access to the GLM model family through an OpenAI-compatible API.
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/zai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/zai"
 )
 
 // Using environment variable (ZAI_API_KEY).
 provider, err := zai.New()
 
 // Or with explicit API key.
-provider, err := zai.New(anyllm.WithAPIKey("your-key"))
+provider, err := zai.New(llmsdk.WithAPIKey("your-key"))
 ```
 
 **Environment Variable:** `ZAI_API_KEY`
@@ -490,10 +490,10 @@ provider, err := zai.New(anyllm.WithAPIKey("your-key"))
 
 ```go
 provider, _ := zai.New()
-resp, err := provider.Completion(ctx, anyllm.CompletionParams{
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "glm-4.6",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Hello!"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Hello!"},
     },
 })
 ```

@@ -28,7 +28,7 @@ assignees: ''
 
 - Go version:
 - OS:
-- any-llm-go version:
+- llm-sdk-go version:
 - Provider(s):
 
 ## Code Example

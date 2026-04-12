@@ -1,4 +1,4 @@
-// Package zai provides a z.ai provider implementation for any-llm.
+// Package zai provides a z.ai provider implementation for llm-sdk.
 package zai
 
 import (
@@ -13,9 +13,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // Provider configuration constants.

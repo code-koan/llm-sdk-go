@@ -1,4 +1,4 @@
-// Package ollama provides an Ollama provider implementation for any-llm.
+// Package ollama provides an Ollama provider implementation for llm-sdk.
 package ollama
 
 import (
@@ -14,9 +14,9 @@ import (
 
 	"github.com/ollama/ollama/api"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // Provider configuration constants.

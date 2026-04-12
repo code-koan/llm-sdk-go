@@ -1,4 +1,4 @@
-// Package anthropic provides an Anthropic provider implementation for any-llm.
+// Package anthropic provides an Anthropic provider implementation for llm-sdk.
 package anthropic
 
 import (
@@ -11,9 +11,9 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // Provider configuration constants.

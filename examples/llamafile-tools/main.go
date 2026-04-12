@@ -23,15 +23,15 @@ import (
 	"log"
 	"time"
 
-	anyllm "github.com/mozilla-ai/any-llm-go"
-	"github.com/mozilla-ai/any-llm-go/providers/llamafile"
+	llmsdk "github.com/code-koan/llm-sdk-go"
+	"github.com/code-koan/llm-sdk-go/providers/llamafile"
 )
 
 // Define real tools that the model can call.
-var tools = []anyllm.Tool{
+var tools = []llmsdk.Tool{
 	{
 		Type: "function",
-		Function: anyllm.Function{
+		Function: llmsdk.Function{
 			Name:        "get_current_datetime",
 			Description: "Get the current date and time. Use this when the user asks about today's date, current time, or day of the week.",
 			Parameters: map[string]any{
@@ -47,7 +47,7 @@ var tools = []anyllm.Tool{
 	},
 	{
 		Type: "function",
-		Function: anyllm.Function{
+		Function: llmsdk.Function{
 			Name:        "calculate",
 			Description: "Perform mathematical calculations. Use this for any math operations like addition, subtraction, multiplication, division, or more complex expressions.",
 			Parameters: map[string]any{
@@ -176,12 +176,12 @@ func main() {
 	for _, prompt := range prompts {
 		fmt.Printf("User: %s\n\n", prompt)
 
-		messages := []anyllm.Message{
-			{Role: anyllm.RoleUser, Content: prompt},
+		messages := []llmsdk.Message{
+			{Role: llmsdk.RoleUser, Content: prompt},
 		}
 
 		// First request - model may call a tool.
-		response, err := provider.Completion(ctx, anyllm.CompletionParams{
+		response, err := provider.Completion(ctx, llmsdk.CompletionParams{
 			Model:      modelName,
 			Messages:   messages,
 			Tools:      tools,
@@ -192,7 +192,7 @@ func main() {
 		}
 
 		// Check if the model wants to call a tool.
-		if response.Choices[0].FinishReason == anyllm.FinishReasonToolCalls {
+		if response.Choices[0].FinishReason == llmsdk.FinishReasonToolCalls {
 			fmt.Println("Model is calling tools...")
 
 			// Add the assistant's message (with tool calls) to the conversation.
@@ -211,15 +211,15 @@ func main() {
 				fmt.Printf("  Result: %s\n\n", result)
 
 				// Add the tool result to the conversation.
-				messages = append(messages, anyllm.Message{
-					Role:       anyllm.RoleTool,
+				messages = append(messages, llmsdk.Message{
+					Role:       llmsdk.RoleTool,
 					Content:    result,
 					ToolCallID: tc.ID,
 				})
 			}
 
 			// Continue the conversation with the tool results.
-			response, err = provider.Completion(ctx, anyllm.CompletionParams{
+			response, err = provider.Completion(ctx, llmsdk.CompletionParams{
 				Model:    modelName,
 				Messages: messages,
 				Tools:    tools,

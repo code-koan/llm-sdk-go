@@ -1,4 +1,4 @@
-// Package mistral provides a Mistral provider implementation for any-llm.
+// Package mistral provides a Mistral provider implementation for llm-sdk.
 // Mistral exposes an OpenAI-compatible API with some differences in message handling.
 package mistral
 
@@ -9,9 +9,9 @@ import (
 	oaisdk "github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/providers"
-	"github.com/mozilla-ai/any-llm-go/providers/openai"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Provider configuration constants.

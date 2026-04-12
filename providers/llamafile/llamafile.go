@@ -1,12 +1,12 @@
-// Package llamafile provides a Llamafile provider implementation for any-llm.
+// Package llamafile provides a Llamafile provider implementation for llm-sdk.
 // Llamafile is a single-file executable that bundles a model with llama.cpp,
 // exposing an OpenAI-compatible API.
 package llamafile
 
 import (
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/providers"
-	"github.com/mozilla-ai/any-llm-go/providers/openai"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Provider configuration constants.

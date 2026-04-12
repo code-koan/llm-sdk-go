@@ -1,6 +1,6 @@
 # Quickstart Guide
 
-Get up and running with any-llm-go in minutes.
+Get up and running with llm-sdk-go in minutes.
 
 ## Prerequisites
 
@@ -11,10 +11,10 @@ Get up and running with any-llm-go in minutes.
 
 ## Installation
 
-Add any-llm-go to your project:
+Add llm-sdk-go to your project:
 
 ```bash
-go get github.com/mozilla-ai/any-llm-go
+go get github.com/code-koan/llm-sdk-go
 ```
 
 ## Setting Up API Keys
@@ -36,8 +36,8 @@ import (
     "fmt"
     "log"
 
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func main() {
@@ -50,10 +50,10 @@ func main() {
     ctx := context.Background()
 
     // Make a completion request.
-    response, err := provider.Completion(ctx, anyllm.CompletionParams{
+    response, err := provider.Completion(ctx, llmsdk.CompletionParams{
         Model: "gpt-4o-mini",
-        Messages: []anyllm.Message{
-            {Role: anyllm.RoleUser, Content: "Say hello in three languages!"},
+        Messages: []llmsdk.Message{
+            {Role: llmsdk.RoleUser, Content: "Say hello in three languages!"},
         },
     })
     if err != nil {
@@ -69,7 +69,7 @@ func main() {
 If you prefer not to use environment variables:
 
 ```go
-provider, err := openai.New(anyllm.WithAPIKey("sk-your-api-key"))
+provider, err := openai.New(llmsdk.WithAPIKey("sk-your-api-key"))
 ```
 
 ## Streaming Responses
@@ -84,8 +84,8 @@ import (
     "fmt"
     "log"
 
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func main() {
@@ -96,10 +96,10 @@ func main() {
 
     ctx := context.Background()
 
-    chunks, errs := provider.CompletionStream(ctx, anyllm.CompletionParams{
+    chunks, errs := provider.CompletionStream(ctx, llmsdk.CompletionParams{
         Model: "gpt-4o-mini",
-        Messages: []anyllm.Message{
-            {Role: anyllm.RoleUser, Content: "Write a haiku about programming."},
+        Messages: []llmsdk.Message{
+            {Role: llmsdk.RoleUser, Content: "Write a haiku about programming."},
         },
         Stream: true,
     })
@@ -124,11 +124,11 @@ func main() {
 Guide the model's behavior with system messages:
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "gpt-4o-mini",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleSystem, Content: "You are a helpful assistant that speaks like a pirate."},
-        {Role: anyllm.RoleUser, Content: "How do I make coffee?"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleSystem, Content: "You are a helpful assistant that speaks like a pirate."},
+        {Role: llmsdk.RoleUser, Content: "How do I make coffee?"},
     },
 })
 ```
@@ -141,10 +141,10 @@ Control the model's output:
 temp := 0.7
 maxTokens := 500
 
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "gpt-4o-mini",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Write a creative story."},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Write a creative story."},
     },
     Temperature: &temp,
     MaxTokens:   &maxTokens,
@@ -162,15 +162,15 @@ import "errors"
 response, err := provider.Completion(ctx, params)
 if err != nil {
     // Check for specific error types.
-    if errors.Is(err, anyllm.ErrRateLimit) {
+    if errors.Is(err, llmsdk.ErrRateLimit) {
         fmt.Println("Rate limited - please retry later")
         return
     }
-    if errors.Is(err, anyllm.ErrAuthentication) {
+    if errors.Is(err, llmsdk.ErrAuthentication) {
         fmt.Println("Invalid API key")
         return
     }
-    if errors.Is(err, anyllm.ErrContextLength) {
+    if errors.Is(err, llmsdk.ErrContextLength) {
         fmt.Println("Input too long - please reduce message size")
         return
     }
@@ -182,17 +182,17 @@ if err != nil {
 
 ## Switching Providers
 
-One of the main benefits of any-llm-go is easy provider switching:
+One of the main benefits of llm-sdk-go is easy provider switching:
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/anthropic"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/anthropic"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
-func tryProvider(providerName string, model string, messages []anyllm.Message) error {
-    var provider anyllm.Provider
+func tryProvider(providerName string, model string, messages []llmsdk.Message) error {
+    var provider llmsdk.Provider
     var err error
 
     switch providerName {
@@ -205,7 +205,7 @@ func tryProvider(providerName string, model string, messages []anyllm.Message) e
         return err
     }
 
-    response, err := provider.Completion(ctx, anyllm.CompletionParams{
+    response, err := provider.Completion(ctx, llmsdk.CompletionParams{
         Model:    model,
         Messages: messages,
     })

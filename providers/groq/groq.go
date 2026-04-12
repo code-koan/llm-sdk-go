@@ -1,11 +1,11 @@
-// Package groq provides a Groq provider implementation for any-llm.
+// Package groq provides a Groq provider implementation for llm-sdk.
 // Groq exposes an OpenAI-compatible API optimized for fast inference.
 package groq
 
 import (
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/providers"
-	"github.com/mozilla-ai/any-llm-go/providers/openai"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Provider configuration constants.

@@ -4,7 +4,7 @@ Guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-any-llm-go is the official Go port of [any-llm](https://github.com/mozilla-ai/any-llm). It provides a unified interface for multiple LLM providers, normalizing responses to OpenAI's format.
+llm-sdk-go is a Go SDK that provides a unified interface for multiple LLM providers, normalizing responses to OpenAI's format.
 
 ## Go Guidelines
 
@@ -29,8 +29,8 @@ make build      # Verify compilation
 ## Project Structure
 
 ```
-any-llm-go/
-├── anyllm.go           # Root package - re-exports types for simple imports
+llm-sdk-go/
+├── llmsdk.go           # Root package - re-exports types for simple imports
 ├── config/config.go    # Functional options pattern for configuration
 ├── errors/errors.go    # Normalized error types with sentinel errors
 ├── providers/
@@ -48,8 +48,8 @@ any-llm-go/
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 ```
 
@@ -102,7 +102,7 @@ Providers implement `ErrorConverter` using `errors.As` with SDK typed errors (no
 
 For providers that expose OpenAI-compatible APIs but don't have their own Go SDK (Llamafile, vLLM, LM Studio, etc.):
 - Use the compatible provider in `providers/openai/compatible.go`
-- Import: `"github.com/mozilla-ai/any-llm-go/providers/openai"`
+- Import: `"github.com/code-koan/llm-sdk-go/providers/openai"`
 - Create thin wrapper that calls `openai.NewCompatible()` with provider-specific `CompatibleConfig`
 - Set ALL `CompatibleConfig` fields explicitly, including empty values (e.g., `BaseURLEnvVar: ""`, `DefaultAPIKey: ""`)
 - Add interface assertions in the wrapper package

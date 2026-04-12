@@ -33,7 +33,7 @@ var (
 	ErrUnsupportedParam    = stderrors.New("unsupported parameter")
 )
 
-// BaseError is the base error type for all any-llm errors.
+// BaseError is the base error type for all llm-sdk errors.
 // It wraps the original error and includes provider context.
 type BaseError struct {
 	// Code is a short error code (e.g., "rate_limit", "auth_error").

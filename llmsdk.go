@@ -1,26 +1,26 @@
-// Package anyllm provides a unified interface for interacting with LLM providers.
+// Package llmsdk provides a unified interface for interacting with LLM providers.
 //
 // This package re-exports common types and configuration options from subpackages,
 // allowing most use cases to work with just two imports:
 //
 //	import (
-//	    anyllm "github.com/mozilla-ai/any-llm-go"
-//	    "github.com/mozilla-ai/any-llm-go/providers/openai"
+//	    llmsdk "github.com/code-koan/llm-sdk-go"
+//	    "github.com/code-koan/llm-sdk-go/providers/openai"
 //	)
 //
-//	provider, err := openai.New(anyllm.WithAPIKey("sk-..."))
-//	response, err := provider.Completion(ctx, anyllm.CompletionParams{
+//	provider, err := openai.New(llmsdk.WithAPIKey("sk-..."))
+//	response, err := provider.Completion(ctx, llmsdk.CompletionParams{
 //	    Model: "gpt-4o-mini",
-//	    Messages: []anyllm.Message{
-//	        {Role: anyllm.RoleUser, Content: "Hello!"},
+//	    Messages: []llmsdk.Message{
+//	        {Role: llmsdk.RoleUser, Content: "Hello!"},
 //	    },
 //	})
-package anyllm
+package llmsdk
 
 import (
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // Message roles.

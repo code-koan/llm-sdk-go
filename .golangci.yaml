@@ -26,8 +26,6 @@ linters:
           # OpenAI API-compatible types use snake_case.
           - pkg: providers
             ignore: true
-          - pkg: providers/platform
-            ignore: true
 
 formatters:
   enable:
@@ -41,7 +39,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/mozilla-ai/any-llm-go)
+        - prefix(github.com/code-koan/llm-sdk-go)
         - blank
         - dot
         - localmodule

@@ -11,10 +11,10 @@ import (
 	"github.com/ollama/ollama/api"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mozilla-ai/any-llm-go/config"
-	"github.com/mozilla-ai/any-llm-go/errors"
-	"github.com/mozilla-ai/any-llm-go/internal/testutil"
-	"github.com/mozilla-ai/any-llm-go/providers"
+	"github.com/code-koan/llm-sdk-go/config"
+	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/internal/testutil"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 const testOllamaAvailabilityTimeout = 5 * time.Second

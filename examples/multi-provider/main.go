@@ -14,9 +14,9 @@ import (
 	"errors"
 	"fmt"
 
-	anyllm "github.com/mozilla-ai/any-llm-go"
-	"github.com/mozilla-ai/any-llm-go/providers/anthropic"
-	"github.com/mozilla-ai/any-llm-go/providers/openai"
+	llmsdk "github.com/code-koan/llm-sdk-go"
+	"github.com/code-koan/llm-sdk-go/providers/anthropic"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func main() {
@@ -39,7 +39,7 @@ func main() {
 }
 
 func tryProvider(ctx context.Context, providerName, model, prompt string) error {
-	var provider anyllm.Provider
+	var provider llmsdk.Provider
 	var err error
 
 	switch providerName {
@@ -52,17 +52,17 @@ func tryProvider(ctx context.Context, providerName, model, prompt string) error 
 	}
 
 	if err != nil {
-		if errors.Is(err, anyllm.ErrMissingAPIKey) {
+		if errors.Is(err, llmsdk.ErrMissingAPIKey) {
 			fmt.Printf("  Skipped: API key not configured\n\n")
 			return nil
 		}
 		return err
 	}
 
-	response, err := provider.Completion(ctx, anyllm.CompletionParams{
+	response, err := provider.Completion(ctx, llmsdk.CompletionParams{
 		Model: model,
-		Messages: []anyllm.Message{
-			{Role: anyllm.RoleUser, Content: prompt},
+		Messages: []llmsdk.Message{
+			{Role: llmsdk.RoleUser, Content: prompt},
 		},
 	})
 	if err != nil {

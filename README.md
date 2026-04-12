@@ -1,15 +1,11 @@
-<p align="center">
-  <picture>
-    <img src="https://raw.githubusercontent.com/mozilla-ai/any-llm/refs/heads/main/docs/images/any-llm-logo-mark.png" width="20%" alt="Project logo"/>
-  </picture>
-</p>
+[English](README.md) | [中文](README_zh.md)
 
 <div align="center">
 
-# any-llm-go
+# llm-sdk-go
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/mozilla-ai/any-llm-go.svg)](https://pkg.go.dev/github.com/mozilla-ai/any-llm-go)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mozilla-ai/any-llm-go)](https://goreportcard.com/report/github.com/mozilla-ai/any-llm-go)
+[![Go Reference](https://pkg.go.dev/badge/github.com/code-koan/llm-sdk-go.svg)](https://pkg.go.dev/github.com/code-koan/llm-sdk-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/code-koan/llm-sdk-go)](https://goreportcard.com/report/github.com/code-koan/llm-sdk-go)
 
 ![Go 1.25+](https://img.shields.io/badge/go-1.25%2B-blue.svg)
 
@@ -25,7 +21,7 @@ Switch between OpenAI, Anthropic, DeepSeek, Mistral, Ollama, and more without ch
 ### Install Go Library
 
 ```bash
-go get github.com/mozilla-ai/any-llm-go
+go get github.com/code-koan/llm-sdk-go
 # Set up your API key(s)
 export OPENAI_API_KEY="YOUR_KEY_HERE"  # or ANTHROPIC_API_KEY, etc
 ```
@@ -38,8 +34,8 @@ import (
     "fmt"
     "log"
 
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func main() {
@@ -50,10 +46,10 @@ func main() {
         log.Fatal(err)
     }
 
-    response, err := provider.Completion(ctx, anyllm.CompletionParams{
+    response, err := provider.Completion(ctx, llmsdk.CompletionParams{
         Model: "gpt-4o-mini",
-        Messages: []anyllm.Message{
-            {Role: anyllm.RoleUser, Content: "Hello!"},
+        Messages: []llmsdk.Message{
+            {Role: llmsdk.RoleUser, Content: "Hello!"},
         },
     })
     if err != nil {
@@ -77,9 +73,9 @@ Import the main package and the providers you need:
 
 ```go
 import (
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"    // OpenAI
-    "github.com/mozilla-ai/any-llm-go/providers/anthropic" // Anthropic
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"    // OpenAI
+    "github.com/code-koan/llm-sdk-go/providers/anthropic" // Anthropic
 )
 ```
 
@@ -99,17 +95,17 @@ export DEEPSEEK_API_KEY="your-key-here"
 Alternatively, pass API keys directly in your code using options:
 
 ```go
-provider, err := openai.New(anyllm.WithAPIKey("your-key-here"))
+provider, err := openai.New(llmsdk.WithAPIKey("your-key-here"))
 ```
 
-## Why choose `any-llm-go`?
+## Why choose `llm-sdk-go`?
 
 - **Simple, unified interface** - Same types and patterns across all providers
 - **Idiomatic Go** - Follows Go conventions with proper error handling and context support
 - **Leverages official provider SDKs** - Uses `github.com/openai/openai-go` and `github.com/anthropics/anthropic-sdk-go`
 - **Type-safe** - Full type definitions for all request and response types
 - **Streaming support** - Channel-based streaming that's natural in Go
-- **Battle-tested patterns** - Based on the proven [any-llm](https://github.com/mozilla-ai/any-llm) Python library
+- **Battle-tested patterns** - Proven unified interface design across multiple LLM providers
 
 ## Usage
 
@@ -121,22 +117,22 @@ import (
     "fmt"
     "log"
 
-    anyllm "github.com/mozilla-ai/any-llm-go"
-    "github.com/mozilla-ai/any-llm-go/providers/openai"
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Create provider once, reuse for multiple requests.
-provider, err := openai.New(anyllm.WithAPIKey("your-api-key"))
+provider, err := openai.New(llmsdk.WithAPIKey("your-api-key"))
 if err != nil {
     log.Fatal(err)
 }
 
 ctx := context.Background()
 
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "gpt-4o-mini",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Hello!"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Hello!"},
     },
 })
 if err != nil {
@@ -153,10 +149,10 @@ Provider instances are reusable and recommended for production applications.
 Use channels for streaming responses:
 
 ```go
-chunks, errs := provider.CompletionStream(ctx, anyllm.CompletionParams{
+chunks, errs := provider.CompletionStream(ctx, llmsdk.CompletionParams{
     Model: "gpt-4o-mini",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Write a short poem about Go."},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Write a short poem about Go."},
     },
 })
 
@@ -174,15 +170,15 @@ if err := <-errs; err != nil {
 ### Tools / Function Calling
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "gpt-4o-mini",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "What's the weather in Paris?"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "What's the weather in Paris?"},
     },
-    Tools: []anyllm.Tool{
+    Tools: []llmsdk.Tool{
         {
             Type: "function",
-            Function: anyllm.Function{
+            Function: llmsdk.Function{
                 Name:        "get_weather",
                 Description: "Get the current weather for a location",
                 Parameters: map[string]any{
@@ -213,12 +209,12 @@ if len(response.Choices[0].Message.ToolCalls) > 0 {
 For models that support extended thinking (like Claude):
 
 ```go
-response, err := provider.Completion(ctx, anyllm.CompletionParams{
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
     Model: "claude-sonnet-4-20250514",
-    Messages: []anyllm.Message{
-        {Role: anyllm.RoleUser, Content: "Solve this step by step: What is 15% of 80?"},
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Solve this step by step: What is 15% of 80?"},
     },
-    ReasoningEffort: anyllm.ReasoningEffortMedium,
+    ReasoningEffort: llmsdk.ReasoningEffortMedium,
 })
 
 if response.Choices[0].Message.Reasoning != nil {
@@ -235,11 +231,11 @@ All provider errors are normalized to common error types:
 response, err := provider.Completion(ctx, params)
 if err != nil {
     switch {
-    case errors.Is(err, anyllm.ErrRateLimit):
+    case errors.Is(err, llmsdk.ErrRateLimit):
         // Handle rate limiting - maybe retry with backoff.
-    case errors.Is(err, anyllm.ErrAuthentication):
+    case errors.Is(err, llmsdk.ErrAuthentication):
         // Handle auth errors - check API key.
-    case errors.Is(err, anyllm.ErrContextLength):
+    case errors.Is(err, llmsdk.ErrContextLength):
         // Handle context too long - reduce input.
     default:
         // Handle other errors.
@@ -250,7 +246,7 @@ if err != nil {
 You can also use type assertions for more details:
 
 ```go
-var rateLimitErr *anyllm.RateLimitError
+var rateLimitErr *llmsdk.RateLimitError
 if errors.As(err, &rateLimitErr) {
     fmt.Printf("Rate limited by %s: %s\n", rateLimitErr.Provider, rateLimitErr.Message)
 }
@@ -293,18 +289,6 @@ More providers coming soon! See [docs/providers.md](docs/providers.md) for the f
 - **[Supported Providers](docs/providers.md)** - List of all supported LLM providers
 - **[API Reference](docs/api/)** - Complete API documentation
 - **[Examples](examples/)** - Code examples for common use cases
-
-## Comparison with Python any-llm
-
-This is the official Go port of [any-llm](https://github.com/mozilla-ai/any-llm). Key differences:
-
-| Feature        | Python any-llm   | Go any-llm            |
-|----------------|------------------|-----------------------|
-| Async support  | `async`/`await`  | Goroutines + channels |
-| Streaming      | Iterators        | Channels              |
-| Error handling | Exceptions       | `error` return values |
-| Type hints     | Type annotations | Static types          |
-| Provider usage | String-based     | Direct instantiation  |
 
 ## Contributing
 

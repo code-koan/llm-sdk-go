@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	anyllm "github.com/mozilla-ai/any-llm-go"
-	"github.com/mozilla-ai/any-llm-go/internal/testutil"
+	llmsdk "github.com/code-koan/llm-sdk-go"
+	"github.com/code-koan/llm-sdk-go/internal/testutil"
 )
 
 const (
@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("creates provider with custom options", func(t *testing.T) {
-		p, err := New(anyllm.WithBaseURL("http://custom:8080"))
+		p, err := New(llmsdk.WithBaseURL("http://custom:8080"))
 		require.NoError(t, err)
 		require.NotNil(t, p)
 	})
@@ -68,7 +68,7 @@ func TestIntegration(t *testing.T) {
 
 	skipIfLlamacppUnavailable(t)
 
-	p, err := New(anyllm.WithTimeout(30 * time.Second))
+	p, err := New(llmsdk.WithTimeout(30 * time.Second))
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -84,7 +84,7 @@ func TestIntegration(t *testing.T) {
 	t.Run("Completion generates text", func(t *testing.T) {
 		t.Parallel()
 
-		resp, err := p.Completion(ctx, anyllm.CompletionParams{
+		resp, err := p.Completion(ctx, llmsdk.CompletionParams{
 			Model:    testModel,
 			Messages: testutil.MessagesWithSystem(),
 		})
@@ -96,7 +96,7 @@ func TestIntegration(t *testing.T) {
 	t.Run("Embedding generates vectors", func(t *testing.T) {
 		t.Parallel()
 
-		resp, err := p.Embedding(ctx, anyllm.EmbeddingParams{
+		resp, err := p.Embedding(ctx, llmsdk.EmbeddingParams{
 			Model: testModel,
 			Input: []string{"test"},
 		})
