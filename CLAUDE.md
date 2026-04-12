@@ -61,6 +61,14 @@ import (
 - `ModelLister` - Optional: `ListModels()`
 - `ErrorConverter` - Optional: `ConvertError()`
 
+### Logging (config/config.go)
+
+- `Logger` interface: `Debug()`, `Info()`, `Warn()`, `Error()` with `...Field`
+- `Field` struct: `Key string, Value any` — zero dependency, zap-shaped
+- Default: no-op logger (zero overhead when `WithLogger` not used)
+- All provider API calls log at Debug level: request params, response with token usage, errors
+- Streaming: log request before goroutine, log response after stream completes with accumulated Usage
+
 ### Error Handling
 
 Normalized errors in `errors/errors.go`: `ErrRateLimit`, `ErrAuthentication`, `ErrContextLength`, `ErrContentFilter`, `ErrModelNotFound`, `ErrInvalidRequest`, `ErrMissingAPIKey`.
@@ -130,3 +138,11 @@ For providers that expose OpenAI-compatible APIs but don't have their own Go SDK
 6. Document in `docs/providers.md`
 
 Reference `providers/anthropic/` as the canonical example.
+
+## Release Process
+
+1. Update version in `sdk/version.go`
+2. Update `CHANGELOG.md` with the new version entry
+3. Commit with message `release: vX.Y.Z`
+4. Tag with `git tag vX.Y.Z` and push tag
+5. The CI workflow validates tag matches version const
