@@ -107,17 +107,20 @@ type (
 // Config types.
 type (
 	Config = config.Config
+	Field  = config.Field
+	Logger = config.Logger
 	Option = config.Option
 )
 
 // Configuration options.
 var (
-	NewConfig      = config.New
-	WithAPIKey     = config.WithAPIKey
-	WithBaseURL    = config.WithBaseURL
-	WithExtra      = config.WithExtra
+	NewConfig  = config.New
+	WithAPIKey = config.WithAPIKey
+	WithBaseURL = config.WithBaseURL
+	WithExtra  = config.WithExtra
 	WithHTTPClient = config.WithHTTPClient
-	WithTimeout    = config.WithTimeout
+	WithLogger = config.WithLogger
+	WithTimeout = config.WithTimeout
 )
 
 // Sentinel errors for type checking with errors.Is().

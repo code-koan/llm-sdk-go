@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -47,6 +46,7 @@ type Provider struct {
 	apiKey     string
 	baseURL    string
 	httpClient *http.Client
+	cfg        *config.Config
 }
 
 // New creates a new z.ai provider.
@@ -70,6 +70,7 @@ func New(opts ...config.Option) (*Provider, error) {
 		apiKey:     apiKey,
 		baseURL:    baseURL,
 		httpClient: cfg.HTTPClient(),
+		cfg:        cfg,
 	}, nil
 }
 
@@ -92,6 +93,15 @@ func (p *Provider) Completion(
 	ctx context.Context,
 	params providers.CompletionParams,
 ) (*providers.ChatCompletion, error) {
+	log := p.cfg.Logger()
+	log.Debug("Completion request",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: params.Model},
+		config.Field{Key: "message_count", Value: len(params.Messages)},
+		config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+		config.Field{Key: "stream", Value: false},
+	)
+
 	reqBody, err := p.createRequest(params, false)
 	if err != nil {
 		return nil, err
@@ -99,11 +109,19 @@ func (p *Provider) Completion(
 
 	resp, err := p.doRequest(ctx, "POST", "chat/completions", reqBody)
 	if err != nil {
+		log.Debug("Completion error",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "error", Value: err.Error()},
+		)
 		return nil, err
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("zai: failed to close response body: %v", err)
+			p.cfg.Logger().Warn("failed to close response body",
+				config.Field{Key: "provider", Value: providerName},
+				config.Field{Key: "error", Value: err.Error()},
+			)
 		}
 	}()
 
@@ -112,7 +130,18 @@ func (p *Provider) Completion(
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
-	return zaiResult.toProviderCompletion(), nil
+	result := zaiResult.toProviderCompletion()
+
+	log.Debug("Completion response",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: result.Model},
+		config.Field{Key: "finish_reason", Value: result.Choices[0].FinishReason},
+		config.Field{Key: "prompt_tokens", Value: result.Usage.PromptTokens},
+		config.Field{Key: "completion_tokens", Value: result.Usage.CompletionTokens},
+		config.Field{Key: "total_tokens", Value: result.Usage.TotalTokens},
+	)
+
+	return result, nil
 }
 
 // CompletionStream performs a streaming chat completion request.
@@ -127,6 +156,15 @@ func (p *Provider) CompletionStream(
 		defer close(chunks)
 		defer close(errs)
 
+		log := p.cfg.Logger()
+		log.Debug("CompletionStream request",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "message_count", Value: len(params.Messages)},
+			config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+			config.Field{Key: "stream", Value: true},
+		)
+
 		reqBody, err := p.createRequest(params, true)
 		if err != nil {
 			select {
@@ -138,6 +176,11 @@ func (p *Provider) CompletionStream(
 
 		resp, err := p.doRequest(ctx, "POST", "chat/completions", reqBody)
 		if err != nil {
+			log.Debug("CompletionStream error",
+				config.Field{Key: "provider", Value: providerName},
+				config.Field{Key: "model", Value: params.Model},
+				config.Field{Key: "error", Value: err.Error()},
+			)
 			select {
 			case errs <- err:
 			case <-ctx.Done():
@@ -146,7 +189,10 @@ func (p *Provider) CompletionStream(
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				log.Printf("zai: failed to close response body: %v", err)
+				p.cfg.Logger().Warn("failed to close response body",
+					config.Field{Key: "provider", Value: providerName},
+					config.Field{Key: "error", Value: err.Error()},
+				)
 			}
 		}()
 
@@ -163,6 +209,11 @@ func (p *Provider) CompletionStream(
 
 			data := bytes.TrimPrefix(line, []byte("data: "))
 			if string(data) == "[DONE]" {
+				log.Debug("CompletionStream response",
+					config.Field{Key: "provider", Value: providerName},
+					config.Field{Key: "model", Value: params.Model},
+					config.Field{Key: "stream", Value: true},
+				)
 				return
 			}
 
@@ -203,7 +254,10 @@ func (p *Provider) ListModels(ctx context.Context) (*providers.ModelsResponse, e
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("zai: failed to close response body: %v", err)
+			p.cfg.Logger().Warn("failed to close response body",
+					config.Field{Key: "provider", Value: providerName},
+					config.Field{Key: "error", Value: err.Error()},
+				)
 		}
 	}()
 
@@ -337,7 +391,10 @@ func (p *Provider) doRequest(ctx context.Context, method, endpoint string, body 
 	if resp.StatusCode >= 400 {
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				log.Printf("zai: failed to close response body: %v", err)
+				p.cfg.Logger().Warn("failed to close response body",
+					config.Field{Key: "provider", Value: providerName},
+					config.Field{Key: "error", Value: err.Error()},
+				)
 			}
 		}()
 		return nil, p.handleErrorResponse(resp)

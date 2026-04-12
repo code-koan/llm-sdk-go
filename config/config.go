@@ -10,6 +10,29 @@ import (
 	"time"
 )
 
+// Field is a structured logging field (key-value pair).
+type Field struct {
+	Key   string
+	Value any
+}
+
+// Logger is a structured logging interface following zap's method naming.
+// The default is a no-op logger; all methods are safe to call when unset.
+type Logger interface {
+	Debug(msg string, fields ...Field)
+	Info(msg string, fields ...Field)
+	Warn(msg string, fields ...Field)
+	Error(msg string, fields ...Field)
+}
+
+// noopLogger is a Logger that discards all messages.
+type noopLogger struct{}
+
+func (noopLogger) Debug(string, ...Field) {}
+func (noopLogger) Info(string, ...Field)  {}
+func (noopLogger) Warn(string, ...Field)  {}
+func (noopLogger) Error(string, ...Field) {}
+
 // Config holds the configuration for a provider.
 type Config struct {
 	// APIKey is the API key for authentication.
@@ -28,6 +51,8 @@ type Config struct {
 	// handles lazy creation with the configured Timeout if not explicitly set on the client.
 	httpClient     *http.Client
 	httpClientOnce sync.Once
+
+	logger Logger
 }
 
 // Option is a function that modifies the Config.
@@ -123,6 +148,18 @@ func WithHTTPClient(client *http.Client) Option {
 	}
 }
 
+// WithLogger sets the logger for debug-level request/response logging.
+func WithLogger(l Logger) Option {
+	return func(c *Config) error {
+		if l == nil {
+			return fmt.Errorf("logger cannot be nil")
+		}
+
+		c.logger = l
+		return nil
+	}
+}
+
 // WithTimeout sets the request timeout.
 func WithTimeout(d time.Duration) Option {
 	return func(c *Config) error {
@@ -158,6 +195,14 @@ func (c *Config) HTTPClient() *http.Client {
 	})
 
 	return c.httpClient
+}
+
+// Logger returns the configured logger, or a no-op logger if none was set.
+func (c *Config) Logger() Logger {
+	if c.logger == nil {
+		return noopLogger{}
+	}
+	return c.logger
 }
 
 // ResolveAPIKey returns the API key from config if set, otherwise falls back
