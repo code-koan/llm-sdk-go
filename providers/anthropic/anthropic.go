@@ -145,6 +145,15 @@ func (p *Provider) Completion(
 	ctx context.Context,
 	params providers.CompletionParams,
 ) (*providers.ChatCompletion, error) {
+	log := p.config.Logger()
+	log.Debug("Completion request",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: params.Model},
+		config.Field{Key: "message_count", Value: len(params.Messages)},
+		config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+		config.Field{Key: "stream", Value: false},
+	)
+
 	req, err := p.convertParams(params)
 	if err != nil {
 		return nil, err
@@ -152,10 +161,26 @@ func (p *Provider) Completion(
 
 	resp, err := p.client.Messages.New(ctx, req)
 	if err != nil {
+		log.Debug("Completion error",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "error", Value: err.Error()},
+		)
 		return nil, p.ConvertError(err)
 	}
 
-	return convertResponse(resp), nil
+	result := convertResponse(resp)
+
+	log.Debug("Completion response",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: result.Model},
+		config.Field{Key: "finish_reason", Value: result.Choices[0].FinishReason},
+		config.Field{Key: "prompt_tokens", Value: result.Usage.PromptTokens},
+		config.Field{Key: "completion_tokens", Value: result.Usage.CompletionTokens},
+		config.Field{Key: "total_tokens", Value: result.Usage.TotalTokens},
+	)
+
+	return result, nil
 }
 
 // convertParams converts providers.CompletionParams to Anthropic request parameters.
@@ -224,6 +249,15 @@ func (p *Provider) CompletionStream(
 		defer close(chunks)
 		defer close(errs)
 
+		log := p.config.Logger()
+		log.Debug("CompletionStream request",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "message_count", Value: len(params.Messages)},
+			config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+			config.Field{Key: "stream", Value: true},
+		)
+
 		req, err := p.convertParams(params)
 		if err != nil {
 			errs <- err
@@ -254,8 +288,20 @@ func (p *Provider) CompletionStream(
 		}
 
 		if err := stream.Err(); err != nil {
+			log.Debug("CompletionStream error",
+				config.Field{Key: "provider", Value: providerName},
+				config.Field{Key: "model", Value: params.Model},
+				config.Field{Key: "error", Value: err.Error()},
+			)
 			errs <- p.ConvertError(err)
+			return
 		}
+
+		log.Debug("CompletionStream response",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: state.model},
+			config.Field{Key: "stream", Value: true},
+		)
 	}()
 
 	return chunks, errs

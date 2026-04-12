@@ -94,6 +94,7 @@ var (
 type CompatibleProvider struct {
 	compatibleConfig CompatibleConfig
 	client           openai.Client
+	cfg              *config.Config
 }
 
 // NewCompatible creates a new OpenAI-compatible provider.
@@ -133,6 +134,7 @@ func NewCompatible(compatCfg CompatibleConfig, opts ...config.Option) (*Compatib
 	return &CompatibleProvider{
 		compatibleConfig: compatCfg,
 		client:           openai.NewClient(clientOpts...),
+		cfg:              cfg,
 	}, nil
 }
 
@@ -150,6 +152,15 @@ func (p *CompatibleProvider) Completion(
 		return nil, err
 	}
 
+	log := p.cfg.Logger()
+	log.Debug("Completion request",
+		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "model", Value: params.Model},
+		config.Field{Key: "message_count", Value: len(params.Messages)},
+		config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+		config.Field{Key: "stream", Value: false},
+	)
+
 	req := convertParams(params)
 	if p.compatibleConfig.ChatCompletionRequestTransform != nil {
 		p.compatibleConfig.ChatCompletionRequestTransform(&req)
@@ -157,10 +168,26 @@ func (p *CompatibleProvider) Completion(
 
 	resp, err := p.client.Chat.Completions.New(ctx, req)
 	if err != nil {
+		log.Debug("Completion error",
+			config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "error", Value: err.Error()},
+		)
 		return nil, p.ConvertError(err)
 	}
 
-	return convertResponse(resp), nil
+	result := convertResponse(resp)
+
+	log.Debug("Completion response",
+		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "model", Value: result.Model},
+		config.Field{Key: "finish_reason", Value: result.Choices[0].FinishReason},
+		config.Field{Key: "prompt_tokens", Value: result.Usage.PromptTokens},
+		config.Field{Key: "completion_tokens", Value: result.Usage.CompletionTokens},
+		config.Field{Key: "total_tokens", Value: result.Usage.TotalTokens},
+	)
+
+	return result, nil
 }
 
 // CompletionStream performs a streaming chat completion request.
@@ -180,24 +207,63 @@ func (p *CompatibleProvider) CompletionStream(
 			return
 		}
 
+		log := p.cfg.Logger()
+		log.Debug("CompletionStream request",
+			config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "message_count", Value: len(params.Messages)},
+			config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+			config.Field{Key: "stream", Value: true},
+		)
+
 		req := convertParams(params)
 		if p.compatibleConfig.ChatCompletionRequestTransform != nil {
 			p.compatibleConfig.ChatCompletionRequestTransform(&req)
 		}
 		stream := p.client.Chat.Completions.NewStreaming(ctx, req)
 
+		var lastModel string
+		var lastUsage *providers.Usage
+
 		for stream.Next() {
 			chunk := stream.Current()
+			converted := convertChunk(&chunk)
+			if converted.Model != "" {
+				lastModel = converted.Model
+			}
+			if converted.Usage != nil {
+				lastUsage = converted.Usage
+			}
 			select {
-			case chunks <- convertChunk(&chunk):
+			case chunks <- converted:
 			case <-ctx.Done():
 				return
 			}
 		}
 
 		if err := stream.Err(); err != nil {
+			log.Debug("CompletionStream error",
+				config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+				config.Field{Key: "model", Value: params.Model},
+				config.Field{Key: "error", Value: err.Error()},
+			)
 			errs <- p.ConvertError(err)
+			return
 		}
+
+		fields := []config.Field{
+			{Key: "provider", Value: p.compatibleConfig.Name},
+			{Key: "model", Value: lastModel},
+			{Key: "stream", Value: true},
+		}
+		if lastUsage != nil {
+			fields = append(fields,
+				config.Field{Key: "prompt_tokens", Value: lastUsage.PromptTokens},
+				config.Field{Key: "completion_tokens", Value: lastUsage.CompletionTokens},
+				config.Field{Key: "total_tokens", Value: lastUsage.TotalTokens},
+			)
+		}
+		log.Debug("CompletionStream response", fields...)
 	}()
 
 	return chunks, errs
@@ -229,14 +295,34 @@ func (p *CompatibleProvider) Embedding(
 	ctx context.Context,
 	params providers.EmbeddingParams,
 ) (*providers.EmbeddingResponse, error) {
+	log := p.cfg.Logger()
+	log.Debug("Embedding request",
+		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "model", Value: params.Model},
+	)
+
 	req := convertEmbeddingParams(params)
 
 	resp, err := p.client.Embeddings.New(ctx, req)
 	if err != nil {
+		log.Debug("Embedding error",
+			config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "error", Value: err.Error()},
+		)
 		return nil, p.ConvertError(err)
 	}
 
-	return convertEmbeddingResponse(resp), nil
+	result := convertEmbeddingResponse(resp)
+
+	log.Debug("Embedding response",
+		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "model", Value: result.Model},
+		config.Field{Key: "prompt_tokens", Value: result.Usage.PromptTokens},
+		config.Field{Key: "total_tokens", Value: result.Usage.TotalTokens},
+	)
+
+	return result, nil
 }
 
 // ListModels returns a list of available models.

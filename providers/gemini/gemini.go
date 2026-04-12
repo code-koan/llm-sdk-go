@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -165,14 +164,42 @@ func (p *Provider) Completion(
 	ctx context.Context,
 	params providers.CompletionParams,
 ) (*providers.ChatCompletion, error) {
+	log := p.config.Logger()
+	log.Debug("Completion request",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: params.Model},
+		config.Field{Key: "message_count", Value: len(params.Messages)},
+		config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+		config.Field{Key: "stream", Value: false},
+	)
+
 	contents, cfg := p.convertParams(params)
 
 	resp, err := p.client.Models.GenerateContent(ctx, params.Model, contents, cfg)
 	if err != nil {
+		log.Debug("Completion error",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "error", Value: err.Error()},
+		)
 		return nil, p.ConvertError(err)
 	}
 
-	return convertResponse(resp, params.Model)
+	result, err := convertResponse(resp, params.Model)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug("Completion response",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: result.Model},
+		config.Field{Key: "finish_reason", Value: result.Choices[0].FinishReason},
+		config.Field{Key: "prompt_tokens", Value: result.Usage.PromptTokens},
+		config.Field{Key: "completion_tokens", Value: result.Usage.CompletionTokens},
+		config.Field{Key: "total_tokens", Value: result.Usage.TotalTokens},
+	)
+
+	return result, nil
 }
 
 // CompletionStream performs a streaming chat completion request.
@@ -187,6 +214,15 @@ func (p *Provider) CompletionStream(
 		defer close(chunks)
 		defer close(errs)
 
+		log := p.config.Logger()
+		log.Debug("CompletionStream request",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "message_count", Value: len(params.Messages)},
+			config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
+			config.Field{Key: "stream", Value: true},
+		)
+
 		contents, cfg := p.convertParams(params)
 		state, err := newStreamState(params.Model)
 		if err != nil {
@@ -199,6 +235,11 @@ func (p *Provider) CompletionStream(
 
 		for resp, err := range p.client.Models.GenerateContentStream(ctx, params.Model, contents, cfg) {
 			if err != nil {
+				log.Debug("CompletionStream error",
+					config.Field{Key: "provider", Value: providerName},
+					config.Field{Key: "model", Value: params.Model},
+					config.Field{Key: "error", Value: err.Error()},
+				)
 				select {
 				case errs <- p.ConvertError(err):
 				case <-ctx.Done():
@@ -231,6 +272,20 @@ func (p *Provider) CompletionStream(
 			case <-ctx.Done():
 			}
 		}
+
+		fields := []config.Field{
+			{Key: "provider", Value: providerName},
+			{Key: "model", Value: params.Model},
+			{Key: "stream", Value: true},
+		}
+		if state.usage != nil {
+			fields = append(fields,
+				config.Field{Key: "prompt_tokens", Value: state.usage.PromptTokens},
+				config.Field{Key: "completion_tokens", Value: state.usage.CompletionTokens},
+				config.Field{Key: "total_tokens", Value: state.usage.TotalTokens},
+			)
+		}
+		log.Debug("CompletionStream response", fields...)
 	}()
 
 	return chunks, errs
@@ -275,10 +330,21 @@ func (p *Provider) Embedding(
 	ctx context.Context,
 	params providers.EmbeddingParams,
 ) (*providers.EmbeddingResponse, error) {
+	log := p.config.Logger()
+	log.Debug("Embedding request",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: params.Model},
+	)
+
 	content := convertEmbeddingInput(params.Input)
 
 	resp, err := p.client.Models.EmbedContent(ctx, params.Model, []*genai.Content{content}, nil)
 	if err != nil {
+		log.Debug("Embedding error",
+			config.Field{Key: "provider", Value: providerName},
+			config.Field{Key: "model", Value: params.Model},
+			config.Field{Key: "error", Value: err.Error()},
+		)
 		return nil, p.ConvertError(err)
 	}
 
@@ -295,11 +361,18 @@ func (p *Provider) Embedding(
 		})
 	}
 
-	return &providers.EmbeddingResponse{
+	result := &providers.EmbeddingResponse{
 		Object: objectList,
 		Data:   data,
 		Model:  params.Model,
-	}, nil
+	}
+
+	log.Debug("Embedding response",
+		config.Field{Key: "provider", Value: providerName},
+		config.Field{Key: "model", Value: result.Model},
+	)
+
+	return result, nil
 }
 
 // ListModels returns available models.
@@ -661,7 +734,7 @@ func convertMessage(msg providers.Message) *genai.Content {
 	case providers.RoleTool:
 		return convertToolMessage(msg)
 	default:
-		log.Printf("gemini: unknown message role %q, skipping message", msg.Role)
+		// Unknown role — skip silently. No provider config available in this standalone function.
 		return nil
 	}
 }

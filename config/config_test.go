@@ -572,3 +572,47 @@ func TestHTTPClientCaching(t *testing.T) {
 
 	require.Same(t, client1, client2)
 }
+
+func TestWithLogger(t *testing.T) {
+	t.Parallel()
+
+	t.Run("sets logger", func(t *testing.T) {
+		t.Parallel()
+
+		l := &testLogger{}
+		cfg, err := New(WithLogger(l))
+		require.NoError(t, err)
+		require.Equal(t, l, cfg.Logger())
+	})
+
+	t.Run("rejects nil logger", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := New(WithLogger(nil))
+		require.Error(t, err)
+	})
+}
+
+func TestLoggerReturnsNoopWhenNotSet(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := New()
+	require.NoError(t, err)
+
+	logger := cfg.Logger()
+	require.NotNil(t, logger)
+
+	// Noop should not panic.
+	logger.Debug("test")
+	logger.Info("test")
+	logger.Warn("test")
+	logger.Error("test")
+}
+
+// testLogger is a minimal Logger implementation for tests.
+type testLogger struct{}
+
+func (testLogger) Debug(string, ...Field) {}
+func (testLogger) Info(string, ...Field)  {}
+func (testLogger) Warn(string, ...Field)  {}
+func (testLogger) Error(string, ...Field) {}
