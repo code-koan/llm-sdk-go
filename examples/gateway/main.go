@@ -114,7 +114,10 @@ func newProvider() (llmsdk.Provider, error) {
 		return nil, fmt.Errorf("unknown provider %q (valid: %v)", provider, valid)
 	}
 
-	opts := []llmsdk.Option{llmsdk.WithAPIKey(os.Getenv("LLM_API_KEY"))}
+	var opts []llmsdk.Option
+	if v := os.Getenv("LLM_API_KEY"); v != "" {
+		opts = append(opts, llmsdk.WithAPIKey(v))
+	}
 	if v := os.Getenv("LLM_BASE_URL"); v != "" {
 		opts = append(opts, llmsdk.WithBaseURL(v))
 	}
