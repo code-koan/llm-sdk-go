@@ -1,0 +1,1 @@
+- [feedback memory must be committed to repo](feedback_memory-commit-discipline.md) — feedback memory 必须同步到仓库 .claude/memory/ 并提交 GitHub

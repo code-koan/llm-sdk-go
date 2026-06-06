@@ -31,7 +31,7 @@ vendor/
 Thumbs.db
 
 # Claude Code
-.claude/
+.claude/worktrees/
 
 # Environment files
 .env
