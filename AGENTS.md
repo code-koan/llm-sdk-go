@@ -158,3 +158,7 @@ codegraph status      # 查看索引状态
 
 当 `.codegraph/codegraph.db` 存在时，Claude Code 自动通过 MCP Server 查询代码结构。
 
+## issue → PR 规范
+
+- issue → PR：使用 `.github/ISSUE_TEMPLATE/` 模板创建 issue 并打 label，变更通过 PR 提交，PR 描述关联 issue
+
