@@ -1,0 +1,58 @@
+name: Bug 报告
+description: 报告 SDK 的 bug 或异常行为
+title: "[BUG] "
+labels: [fix, needs-triage]
+body:
+  - type: checkboxes
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索过已有 issue，没有找到重复的
+          required: true
+  - type: textarea
+    attributes:
+      label: 问题描述
+      description: 发生了什么？
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 复现代码
+      description: 提供最小可复现的代码示例
+      render: go
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 期望行为
+      description: 正确情况应该是什么样的？
+  - type: textarea
+    attributes:
+      label: 实际行为
+      description: 错误信息、堆栈等
+  - type: input
+    attributes:
+      label: Go 版本
+      description: "`go version` 输出"
+      placeholder: "go1.24.0 linux/amd64"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: SDK 版本
+      description: 使用的 llm-sdk-go 版本
+      placeholder: "v0.x.x"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: 使用的 Provider
+      options:
+        - anthropic
+        - openai
+        - ollama
+        - compatible
+        - 多个
+  - type: textarea
+    attributes:
+      label: 补充信息
