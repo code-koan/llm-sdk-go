@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-06-10
+
+### Added
+
+- `fallback` package: multi-provider Router with automatic failover, retry, and selection strategies
+- `Selector` interface + `RandomSelector` / `RoundRobinSelector` built-in implementations
+- `RetryPolicy` interface + `DefaultRetryPolicy` with error classification and exponential backoff
+- `Router` struct implementing `providers.Provider` as a transparent drop-in replacement
+- `AllFailedError` type for inspecting failures across all providers
+- Streaming fallback: retry on initial connection failure before the first chunk
+- Re-exports in root `llmsdk` package: `Router`, `Selector`, `RetryPolicy`, `AllFailedError`
+- Documentation: `docs/fallback.md`, updated `architecture.md`, `providers.md`, `quickstart.md`
+
 ## [0.10.0] - 2025-04-12
 
 ### Added

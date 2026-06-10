@@ -2,6 +2,8 @@
 
 llm-sdk-go supports multiple LLM providers through a unified interface. Each provider is implemented as a separate package.
 
+> **Fallback Router**: 将多个 provider 组合成节点池，自动 fallback + 重试。参见 [fallback.md](fallback.md)。
+
 ## Provider Status
 
 | Provider                | ID          | Completion | Streaming | Tools | Reasoning | Embeddings | List Models |

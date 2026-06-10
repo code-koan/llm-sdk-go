@@ -139,6 +139,23 @@ For providers that expose OpenAI-compatible APIs but don't have their own Go SDK
 
 Reference `providers/anthropic/` as the canonical example.
 
+## Interface-First Development
+
+新增跨包功能时，遵循接口优先原则：
+1. 先定义策略接口（如 `Selector`、`RetryPolicy`），只暴露必要方法
+2. 提供 1-2 个内置实现作为默认值，同时允许用户自定义
+3. 主体 struct 实现被包装的接口（如 `Provider`），保证透明替换
+4. 用 `internal/testutil.MockProvider` 做测试，不依赖真实 API
+5. 最后在 `llmsdk.go` 中 re-export 类型和构造器
+
+## New Feature Doc Sync
+
+新增跨包功能时同步更新文档：
+1. `docs/architecture.md` — 目录结构 + 架构段
+2. `docs/<feature>.md` — 新建完整使用文档
+3. `docs/providers.md` — 顶部引用指针（如涉及外部可见）
+4. `docs/quickstart.md` — 添加最小可用示例
+
 ## Release Process
 
 1. Update version in `sdk/version.go`
