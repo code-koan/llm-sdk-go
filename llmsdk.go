@@ -20,6 +20,7 @@ package llmsdk
 import (
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/fallback"
 	"github.com/code-koan/llm-sdk-go/providers"
 )
 
@@ -150,4 +151,23 @@ type (
 	RateLimitError           = errors.RateLimitError
 	UnsupportedParamError    = errors.UnsupportedParamError
 	UnsupportedProviderError = errors.UnsupportedProviderError
+)
+
+// Fallback types.
+type (
+	Router         = fallback.Router
+	AllFailedError = fallback.AllFailedError
+	RetryPolicy    = fallback.RetryPolicy
+	Selector       = fallback.Selector
+)
+
+// Fallback router construction.
+var (
+	NewRouter                        = fallback.New
+	NewDefaultRetryPolicy            = fallback.NewDefaultRetryPolicy
+	NewRandomSelector                = fallback.NewRandomSelector
+	NewRoundRobinSelector            = fallback.NewRoundRobinSelector
+	WithRouterSelector               = fallback.WithSelector
+	WithRouterRetryPolicy            = fallback.WithRetryPolicy
+	WithRouterMaxAttemptsPerProvider = fallback.WithMaxAttemptsPerProvider
 )

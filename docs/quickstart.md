@@ -218,6 +218,34 @@ func tryProvider(providerName string, model string, messages []llmsdk.Message) e
 }
 ```
 
+## Using Fallback Router
+
+将多个 provider 组合成节点池，自动 fallback 和重试：
+
+```go
+import (
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/anthropic"
+    "github.com/code-koan/llm-sdk-go/providers/openai"
+)
+
+func main() {
+    openaiProv, _ := openai.New()
+    anthropicProv, _ := anthropic.New()
+
+    // 创建 Router，用法与单个 provider 完全一致。
+    router, _ := llmsdk.NewRouter([]llmsdk.Provider{openaiProv, anthropicProv})
+
+    resp, err := router.Completion(ctx, llmsdk.CompletionParams{
+        Model:    "gpt-4o-mini",
+        Messages: messages,
+    })
+    // 如果 OpenAI 限流或失败，自动 fallback 到 Anthropic。
+}
+```
+
+详见 [Fallback Router](fallback.md)。
+
 ## Next Steps
 
 - [Supported Providers](providers.md) - See all available providers
