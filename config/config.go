@@ -41,6 +41,9 @@ type Config struct {
 	// BaseURL is the base URL for the API. If empty, the provider's default is used.
 	BaseURL string
 
+	// DefaultUser is the default end-user identifier for provider requests.
+	DefaultUser string
+
 	// Extra holds provider-specific configuration options.
 	Extra map[string]any
 
@@ -168,6 +171,19 @@ func WithTimeout(d time.Duration) Option {
 		}
 
 		c.Timeout = d
+		return nil
+	}
+}
+
+// WithUserID sets the default end-user identifier. Whitespace is automatically trimmed.
+func WithUserID(userID string) Option {
+	return func(c *Config) error {
+		userID = strings.TrimSpace(userID)
+		if userID == "" {
+			return fmt.Errorf("user ID cannot be empty")
+		}
+
+		c.DefaultUser = userID
 		return nil
 	}
 }

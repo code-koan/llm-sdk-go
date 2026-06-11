@@ -157,6 +157,9 @@ func preprocessParams(params providers.CompletionParams) providers.CompletionPar
 		Seed:            params.Seed,
 		User:            params.User,
 		Extra:           params.Extra,
+		Headers:         params.Headers,
+		OverrideBody:    params.OverrideBody,
+		CacheControl:    params.CacheControl,
 	}
 }
 

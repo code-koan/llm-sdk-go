@@ -2,7 +2,9 @@ package errors
 
 import (
 	stderrors "errors"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -206,6 +208,67 @@ func TestErrorCodes(t *testing.T) {
 		t.Parallel()
 		err := NewUnsupportedParamError("openai", "param")
 		require.Equal(t, CodeUnsupportedParam, err.Code)
+	})
+}
+
+func TestNewRateLimitErrorWithHeaders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uses retry after ms before seconds", func(t *testing.T) {
+		t.Parallel()
+
+		headers := http.Header{}
+		headers.Set("Retry-After-Ms", "1500")
+		headers.Set("Retry-After", "10")
+		headers.Set("X-RateLimit-Remaining-Requests", "42")
+
+		err := NewRateLimitErrorWithHeaders("openai", stderrors.New("limited"), headers)
+
+		require.Equal(t, 2, err.RetryAfter)
+		require.Equal(t, "1500", err.Headers["Retry-After-Ms"])
+		require.Equal(t, "42", err.Headers["X-Ratelimit-Remaining-Requests"])
+	})
+
+	t.Run("parses retry after seconds", func(t *testing.T) {
+		t.Parallel()
+
+		headers := http.Header{}
+		headers.Set("Retry-After", "30")
+
+		err := NewRateLimitErrorWithHeaders("openai", stderrors.New("limited"), headers)
+
+		require.Equal(t, 30, err.RetryAfter)
+	})
+
+	t.Run("parses retry after http date", func(t *testing.T) {
+		t.Parallel()
+
+		headers := http.Header{}
+		headers.Set("Retry-After", time.Now().Add(time.Hour).UTC().Format(http.TimeFormat))
+
+		err := NewRateLimitErrorWithHeaders("openai", stderrors.New("limited"), headers)
+
+		require.Positive(t, err.RetryAfter)
+	})
+
+	t.Run("collects anthropic rate limit headers", func(t *testing.T) {
+		t.Parallel()
+
+		headers := http.Header{}
+		headers.Set("Anthropic-RateLimit-Requests-Remaining", "10")
+
+		err := NewRateLimitErrorWithHeaders("anthropic", stderrors.New("limited"), headers)
+
+		require.Equal(t, "10", err.Headers["Anthropic-Ratelimit-Requests-Remaining"])
+	})
+
+	t.Run("leaves headers nil when none collected", func(t *testing.T) {
+		t.Parallel()
+
+		err := NewRateLimitErrorWithHeaders("openai", stderrors.New("limited"), http.Header{})
+
+		require.Nil(t, err.Headers)
+		require.Zero(t, err.RetryAfter)
 	})
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/anthropics/anthropic-sdk-go/packages/param"
 
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
@@ -84,13 +85,15 @@ type Provider struct {
 // streamState tracks accumulated state during streaming.
 // Note: Only accessed from a single goroutine, so no synchronization needed.
 type streamState struct {
-	messageID      string
-	model          string
-	content        strings.Builder
-	reasoning      strings.Builder
-	toolCalls      []providers.ToolCall
-	currentToolIdx int
-	inputUsage     int64
+	messageID               string
+	model                   string
+	content                 strings.Builder
+	reasoning               strings.Builder
+	toolCalls               []providers.ToolCall
+	currentToolIdx          int
+	cacheCreationInputUsage int64
+	cacheReadInputUsage     int64
+	inputUsage              int64
 }
 
 // New creates a new Anthropic provider.
@@ -154,12 +157,19 @@ func (p *Provider) Completion(
 		config.Field{Key: "stream", Value: false},
 	)
 
+	// Validate Extra fields don't conflict with standard Anthropic fields.
+	for k := range params.Extra {
+		if anthropicStandardFields[k] {
+			return nil, errors.NewUnsupportedParamError(providerName, k)
+		}
+	}
+
 	req, err := p.convertParams(params)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := p.client.Messages.New(ctx, req)
+	resp, err := p.client.Messages.New(ctx, req, requestOptions(params.Headers, params.Extra, params.OverrideBody)...)
 	if err != nil {
 		log.Debug("Completion error",
 			config.Field{Key: "provider", Value: providerName},
@@ -185,7 +195,7 @@ func (p *Provider) Completion(
 
 // convertParams converts providers.CompletionParams to Anthropic request parameters.
 func (p *Provider) convertParams(params providers.CompletionParams) (anthropic.MessageNewParams, error) {
-	messages, system := convertMessages(params.Messages)
+	messages, system := convertMessages(params.Messages, p.config.Logger())
 
 	maxTokens := int64(defaultMaxTokens)
 	if params.MaxTokens != nil {
@@ -232,6 +242,24 @@ func (p *Provider) convertParams(params providers.CompletionParams) (anthropic.M
 		req.ToolChoice = convertToolChoice(params.ToolChoice, params.ParallelToolCalls)
 	}
 
+	if params.CacheControl != nil {
+		cc, err := toAnthropicCacheControl(params.CacheControl)
+		if err != nil {
+			return anthropic.MessageNewParams{}, err
+		}
+		req.CacheControl = cc
+	}
+
+	if params.User != "" {
+		req.Metadata = anthropic.MetadataParam{
+			UserID: param.NewOpt(params.User),
+		}
+	} else if p.config.DefaultUser != "" {
+		req.Metadata = anthropic.MetadataParam{
+			UserID: param.NewOpt(p.config.DefaultUser),
+		}
+	}
+
 	applyThinking(&req, params.ReasoningEffort, maxTokens)
 
 	return req, nil
@@ -258,13 +286,24 @@ func (p *Provider) CompletionStream(
 			config.Field{Key: "stream", Value: true},
 		)
 
+		// Validate Extra fields don't conflict with standard Anthropic fields.
+		for k := range params.Extra {
+			if anthropicStandardFields[k] {
+				errs <- errors.NewUnsupportedParamError(providerName, k)
+				return
+			}
+		}
+
 		req, err := p.convertParams(params)
 		if err != nil {
 			errs <- err
 			return
 		}
 
-		stream := p.client.Messages.NewStreaming(ctx, req)
+		stream := p.client.Messages.NewStreaming(
+			ctx,
+			req,
+			requestOptions(params.Headers, params.Extra, params.OverrideBody)...)
 		state := newStreamState()
 
 		for stream.Next() {
@@ -272,18 +311,30 @@ func (p *Provider) CompletionStream(
 
 			switch event.Type {
 			case eventMessageStart:
-				chunks <- state.handleMessageStart(event.AsMessageStart())
+				select {
+				case chunks <- state.handleMessageStart(event.AsMessageStart()):
+				case <-ctx.Done():
+					return
+				}
 
 			case eventContentBlockStart:
 				state.handleContentBlockStart(event.AsContentBlockStart())
 
 			case eventContentBlockDelta:
 				if chunk := state.handleContentBlockDelta(event.AsContentBlockDelta()); chunk != nil {
-					chunks <- *chunk
+					select {
+					case chunks <- *chunk:
+					case <-ctx.Done():
+						return
+					}
 				}
 
 			case eventMessageDelta:
-				chunks <- state.handleMessageDelta(event.AsMessageDelta())
+				select {
+				case chunks <- state.handleMessageDelta(event.AsMessageDelta()):
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 
@@ -383,10 +434,16 @@ func (s *streamState) handleMessageDelta(event anthropic.MessageDeltaEvent) prov
 	finishReason := convertStopReason(string(event.Delta.StopReason))
 	chunk := s.chunk(providers.ChunkDelta{})
 	chunk.Choices[0].FinishReason = finishReason
+	promptTokens := int(s.inputUsage + s.cacheCreationInputUsage + s.cacheReadInputUsage)
+	completionTokens := int(event.Usage.OutputTokens)
+	cacheCreationInput := int(event.Usage.CacheCreationInputTokens)
+	cacheReadInput := int(event.Usage.CacheReadInputTokens)
 	chunk.Usage = &providers.Usage{
-		PromptTokens:     int(s.inputUsage),
-		CompletionTokens: int(event.Usage.OutputTokens),
-		TotalTokens:      int(s.inputUsage + event.Usage.OutputTokens),
+		PromptTokens:             promptTokens,
+		CompletionTokens:         completionTokens,
+		CacheReadInputTokens:     cacheReadInput,
+		CacheCreationInputTokens: cacheCreationInput,
+		TotalTokens:              promptTokens + completionTokens,
 	}
 	return chunk
 }
@@ -396,6 +453,8 @@ func (s *streamState) handleMessageStart(event anthropic.MessageStartEvent) prov
 	s.messageID = event.Message.ID
 	s.model = string(event.Message.Model)
 	s.inputUsage = event.Message.Usage.InputTokens
+	s.cacheCreationInputUsage = event.Message.Usage.CacheCreationInputTokens
+	s.cacheReadInputUsage = event.Message.Usage.CacheReadInputTokens
 
 	return s.chunk(providers.ChunkDelta{Role: providers.RoleAssistant})
 }
@@ -414,6 +473,72 @@ func (s *streamState) handleTextDelta(text string) *providers.ChatCompletionChun
 	s.content.WriteString(text)
 	chunk := s.chunk(providers.ChunkDelta{Content: text})
 	return &chunk
+}
+
+// anthropicStandardFields are the standard request body field names that
+// Extra must not collide with.
+var anthropicStandardFields = map[string]bool{
+	"model":          true,
+	"messages":       true,
+	"system":         true,
+	"max_tokens":     true,
+	"temperature":    true,
+	"top_p":          true,
+	"top_k":          true,
+	"stop_sequences": true,
+	"stream":         true,
+	"tools":          true,
+	"tool_choice":    true,
+	"metadata":       true,
+	"thinking":       true,
+}
+
+// requestOptions converts headers, Extra, and OverrideBody into anthropic SDK request options.
+func requestOptions(
+	headers map[string]string,
+	extra map[string]any,
+	overrideBody map[string]any,
+) []option.RequestOption {
+	n := len(headers) + len(extra) + len(overrideBody)
+	if n == 0 {
+		return nil
+	}
+	opts := make([]option.RequestOption, 0, n)
+	for k, v := range headers {
+		opts = append(opts, option.WithHeader(k, v))
+	}
+	for k, v := range extra {
+		opts = append(opts, option.WithJSONSet(k, v))
+	}
+	for k, v := range overrideBody {
+		opts = append(opts, option.WithJSONSet(k, v))
+	}
+	return opts
+}
+
+// toAnthropicCacheControl converts a provider-neutral CacheControlParam to anthropic format.
+func toAnthropicCacheControl(cc *providers.CacheControlParam) (anthropic.CacheControlEphemeralParam, error) {
+	if cc.Type != "" && cc.Type != providers.CacheControlTypeEphemeral {
+		return anthropic.CacheControlEphemeralParam{}, errors.NewUnsupportedParamError(
+			providerName,
+			"cache_control.type",
+		)
+	}
+	if cc.TTL != "" && cc.TTL != providers.CacheControlTTL5m && cc.TTL != providers.CacheControlTTL1h {
+		return anthropic.CacheControlEphemeralParam{}, errors.NewUnsupportedParamError(
+			providerName,
+			"cache_control.ttl",
+		)
+	}
+
+	result := anthropic.NewCacheControlEphemeralParam()
+	switch cc.TTL {
+	case providers.CacheControlTTL5m:
+		result.TTL = anthropic.CacheControlEphemeralTTLTTL5m
+	case providers.CacheControlTTL1h:
+		result.TTL = anthropic.CacheControlEphemeralTTLTTL1h
+	}
+	return result, nil
 }
 
 // applyThinking configures thinking/reasoning on the request if applicable.
@@ -479,10 +604,10 @@ func convertImagePart(img *providers.ImageURL) anthropic.ContentBlockParamUnion 
 }
 
 // convertMessage converts a single message to Anthropic format.
-func convertMessage(msg providers.Message) *anthropic.MessageParam {
+func convertMessage(msg providers.Message, log config.Logger) *anthropic.MessageParam {
 	switch msg.Role {
 	case providers.RoleUser:
-		return convertUserMessage(msg)
+		return convertUserMessage(msg, log)
 	case providers.RoleAssistant:
 		return convertAssistantMessage(msg)
 	case providers.RoleTool:
@@ -494,7 +619,7 @@ func convertMessage(msg providers.Message) *anthropic.MessageParam {
 
 // convertMessages converts providers messages to Anthropic format.
 // Returns the messages and the combined system message.
-func convertMessages(messages []providers.Message) ([]anthropic.MessageParam, string) {
+func convertMessages(messages []providers.Message, log config.Logger) ([]anthropic.MessageParam, string) {
 	result := make([]anthropic.MessageParam, 0, len(messages))
 	var systemParts []string
 
@@ -504,7 +629,7 @@ func convertMessages(messages []providers.Message) ([]anthropic.MessageParam, st
 			continue
 		}
 
-		if converted := convertMessage(msg); converted != nil {
+		if converted := convertMessage(msg, log); converted != nil {
 			result = append(result, *converted)
 		}
 	}
@@ -553,6 +678,26 @@ func convertResponse(resp *anthropic.Message) *providers.ChatCompletion {
 
 	finishReason := convertStopReason(string(resp.StopReason))
 
+	cacheCreationInput := int(resp.Usage.CacheCreationInputTokens)
+	cacheReadInput := int(resp.Usage.CacheReadInputTokens)
+	promptTokens := int(resp.Usage.InputTokens) + cacheCreationInput + cacheReadInput
+	completionTokens := int(resp.Usage.OutputTokens)
+
+	usage := &providers.Usage{
+		PromptTokens:             promptTokens,
+		CompletionTokens:         completionTokens,
+		CacheReadInputTokens:     cacheReadInput,
+		CacheCreationInputTokens: cacheCreationInput,
+		TotalTokens:              promptTokens + completionTokens,
+	}
+
+	if resp.Usage.CacheCreation.Ephemeral1hInputTokens > 0 || resp.Usage.CacheCreation.Ephemeral5mInputTokens > 0 {
+		usage.CacheCreation = &providers.CacheCreation{
+			Ephemeral1hInputTokens: int(resp.Usage.CacheCreation.Ephemeral1hInputTokens),
+			Ephemeral5mInputTokens: int(resp.Usage.CacheCreation.Ephemeral5mInputTokens),
+		}
+	}
+
 	return &providers.ChatCompletion{
 		ID:     resp.ID,
 		Object: "chat.completion",
@@ -562,11 +707,7 @@ func convertResponse(resp *anthropic.Message) *providers.ChatCompletion {
 			Message:      message,
 			FinishReason: finishReason,
 		}},
-		Usage: &providers.Usage{
-			PromptTokens:     int(resp.Usage.InputTokens),
-			CompletionTokens: int(resp.Usage.OutputTokens),
-			TotalTokens:      int(resp.Usage.InputTokens + resp.Usage.OutputTokens),
-		},
+		Usage: usage,
 	}
 }
 
@@ -593,7 +734,7 @@ func convertTool(tool providers.Tool) (anthropic.ToolUnionParam, error) {
 	}
 
 	if tool.Function.Parameters == nil {
-		return buildToolParam(tool, inputSchema), nil
+		return buildToolParam(tool, inputSchema)
 	}
 
 	if props, ok := tool.Function.Parameters[schemaFieldProperties]; ok {
@@ -602,7 +743,7 @@ func convertTool(tool providers.Tool) (anthropic.ToolUnionParam, error) {
 
 	req, ok := tool.Function.Parameters[schemaFieldRequired]
 	if !ok {
-		return buildToolParam(tool, inputSchema), nil
+		return buildToolParam(tool, inputSchema)
 	}
 
 	required, err := toStringSlice(req)
@@ -615,18 +756,28 @@ func convertTool(tool providers.Tool) (anthropic.ToolUnionParam, error) {
 	}
 	inputSchema.Required = required
 
-	return buildToolParam(tool, inputSchema), nil
+	return buildToolParam(tool, inputSchema)
 }
 
 // buildToolParam constructs the final ToolUnionParam from tool metadata and schema.
-func buildToolParam(tool providers.Tool, schema anthropic.ToolInputSchemaParam) anthropic.ToolUnionParam {
-	return anthropic.ToolUnionParam{
+func buildToolParam(tool providers.Tool, schema anthropic.ToolInputSchemaParam) (anthropic.ToolUnionParam, error) {
+	result := anthropic.ToolUnionParam{
 		OfTool: &anthropic.ToolParam{
 			Name:        tool.Function.Name,
 			Description: anthropic.String(tool.Function.Description),
 			InputSchema: schema,
 		},
 	}
+
+	if tool.CacheControl != nil {
+		cc, err := toAnthropicCacheControl(tool.CacheControl)
+		if err != nil {
+			return anthropic.ToolUnionParam{}, fmt.Errorf("tool %s: invalid cache_control: %w", tool.Function.Name, err)
+		}
+		result.OfTool.CacheControl = cc
+	}
+
+	return result, nil
 }
 
 // convertToolCall converts a tool call to Anthropic content block format.
@@ -695,7 +846,7 @@ func convertToolMessage(msg providers.Message) *anthropic.MessageParam {
 }
 
 // convertUserMessage converts a user message to Anthropic format.
-func convertUserMessage(msg providers.Message) *anthropic.MessageParam {
+func convertUserMessage(msg providers.Message, log config.Logger) *anthropic.MessageParam {
 	if !msg.IsMultiModal() {
 		m := anthropic.NewUserMessage(anthropic.NewTextBlock(msg.ContentString()))
 		return &m
@@ -705,10 +856,32 @@ func convertUserMessage(msg providers.Message) *anthropic.MessageParam {
 	for _, part := range msg.ContentParts() {
 		switch part.Type {
 		case "text":
-			content = append(content, anthropic.NewTextBlock(part.Text))
+			textBlock := anthropic.NewTextBlock(part.Text)
+			if part.CacheControl != nil {
+				cc, err := toAnthropicCacheControl(part.CacheControl)
+				if err == nil && textBlock.OfText != nil {
+					textBlock.OfText.CacheControl = cc
+				} else if err != nil {
+					log.Warn("failed to convert cache control for text part",
+						config.Field{Key: "error", Value: err.Error()},
+					)
+				}
+			}
+			content = append(content, textBlock)
 		case "image_url":
 			if part.ImageURL != nil {
-				content = append(content, convertImagePart(part.ImageURL))
+				imgBlock := convertImagePart(part.ImageURL)
+				if part.CacheControl != nil {
+					cc, err := toAnthropicCacheControl(part.CacheControl)
+					if err == nil && imgBlock.OfImage != nil {
+						imgBlock.OfImage.CacheControl = cc
+					} else if err != nil {
+						log.Warn("failed to convert cache control for image part",
+							config.Field{Key: "error", Value: err.Error()},
+						)
+					}
+				}
+				content = append(content, imgBlock)
 			}
 		}
 	}
@@ -771,6 +944,9 @@ func (p *Provider) ConvertError(err error) error {
 	case 401:
 		return errors.NewAuthenticationError(providerName, err)
 	case 429:
+		if apiErr.Response != nil {
+			return errors.NewRateLimitErrorWithHeaders(providerName, err, apiErr.Response.Header)
+		}
 		return errors.NewRateLimitError(providerName, err)
 	case 404:
 		return errors.NewModelNotFoundError(providerName, err)

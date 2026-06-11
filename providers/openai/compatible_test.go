@@ -2,8 +2,14 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
+	stderrors "errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/openai/openai-go"
 	"github.com/stretchr/testify/require"
 
 	"github.com/code-koan/llm-sdk-go/config"
@@ -241,7 +247,7 @@ func TestConvertEmbeddingParams(t *testing.T) {
 			Input: "Hello, world!",
 		}
 
-		result := convertEmbeddingParams(params)
+		result := convertEmbeddingParams(params, "")
 		require.NotNil(t, result.Input.OfString)
 	})
 
@@ -253,7 +259,7 @@ func TestConvertEmbeddingParams(t *testing.T) {
 			Input: []string{"Hello", "World"},
 		}
 
-		result := convertEmbeddingParams(params)
+		result := convertEmbeddingParams(params, "")
 		require.NotNil(t, result.Input.OfArrayOfStrings)
 	})
 
@@ -265,7 +271,7 @@ func TestConvertEmbeddingParams(t *testing.T) {
 			Input: 12345, // Unsupported type.
 		}
 
-		result := convertEmbeddingParams(params)
+		result := convertEmbeddingParams(params, "")
 		// Should convert to string representation.
 		require.NotNil(t, result.Input.OfString)
 	})
@@ -282,9 +288,434 @@ func TestConvertEmbeddingParams(t *testing.T) {
 			User:           "test-user",
 		}
 
-		result := convertEmbeddingParams(params)
+		result := convertEmbeddingParams(params, "")
 		require.Equal(t, int64(256), result.Dimensions.Value)
 		require.Equal(t, "test-user", result.User.Value)
+	})
+}
+
+func TestCompatibleHeaders(t *testing.T) {
+	t.Parallel()
+
+	// Fake server that captures request headers.
+	var capturedHeaders map[string]string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedHeaders = map[string]string{
+			"X-Custom-Header": r.Header.Get("X-Custom-Header"),
+			"Authorization":   r.Header.Get("Authorization"),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"id": "chatcmpl-test",
+			"object": "chat.completion",
+			"created": 1700000000,
+			"model": "test-model",
+			"choices": [{
+				"index": 0,
+				"message": {"role": "assistant", "content": "hello"},
+				"finish_reason": "stop"
+			}],
+			"usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8}
+		}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	baseCfg := CompatibleConfig{
+		Name:           "test-provider",
+		DefaultBaseURL: srv.URL,
+		DefaultAPIKey:  "test-key",
+		Capabilities: providers.Capabilities{
+			Completion: true,
+		},
+	}
+
+	provider, err := NewCompatible(baseCfg)
+	require.NoError(t, err)
+
+	params := providers.CompletionParams{
+		Model:    "test-model",
+		Messages: []providers.Message{{Role: providers.RoleUser, Content: "Hello"}},
+		Headers:  map[string]string{"X-Custom-Header": "custom-value"},
+	}
+
+	_, err = provider.Completion(context.Background(), params)
+	require.NoError(t, err)
+	require.NotNil(t, capturedHeaders)
+	require.Equal(t, "custom-value", capturedHeaders["X-Custom-Header"])
+}
+
+func TestCompatibleExtraConflict(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		extra map[string]any
+	}{
+		{
+			name:  "model conflict",
+			extra: map[string]any{"model": "gpt-5"},
+		},
+		{
+			name:  "temperature conflict",
+			extra: map[string]any{"temperature": 0.5},
+		},
+		{
+			name:  "user conflict",
+			extra: map[string]any{"user": "custom-user"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			baseCfg := CompatibleConfig{
+				Name:           "test-provider",
+				DefaultBaseURL: "http://localhost:9999",
+				DefaultAPIKey:  "test-key",
+				Capabilities: providers.Capabilities{
+					Completion: true,
+				},
+			}
+
+			provider, err := NewCompatible(baseCfg)
+			require.NoError(t, err)
+
+			params := providers.CompletionParams{
+				Model:    "test-model",
+				Messages: []providers.Message{{Role: providers.RoleUser, Content: "Hello"}},
+				Extra:    tc.extra,
+			}
+
+			_, err = provider.Completion(context.Background(), params)
+			require.Error(t, err)
+
+			var unsupportedErr *errors.UnsupportedParamError
+			require.ErrorAs(t, err, &unsupportedErr)
+		})
+	}
+}
+
+func TestCompatibleOverrideBody(t *testing.T) {
+	t.Parallel()
+
+	var capturedBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &capturedBody)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"id": "chatcmpl-test",
+			"object": "chat.completion",
+			"created": 1700000000,
+			"model": "test-model",
+			"choices": [{
+				"index": 0,
+				"message": {"role": "assistant", "content": "hello"},
+				"finish_reason": "stop"
+			}],
+			"usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8}
+		}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	baseCfg := CompatibleConfig{
+		Name:           "test-provider",
+		DefaultBaseURL: srv.URL,
+		DefaultAPIKey:  "test-key",
+		Capabilities: providers.Capabilities{
+			Completion: true,
+		},
+	}
+
+	provider, err := NewCompatible(baseCfg)
+	require.NoError(t, err)
+
+	params := providers.CompletionParams{
+		Model:    "test-model",
+		Messages: []providers.Message{{Role: providers.RoleUser, Content: "Hello"}},
+		OverrideBody: map[string]any{
+			"model": "overridden-model",
+		},
+	}
+
+	_, err = provider.Completion(context.Background(), params)
+	require.NoError(t, err)
+	require.Equal(t, "overridden-model", capturedBody["model"])
+}
+
+func TestCompatibleDefaultUser(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		paramsUser  string
+		defaultUser string
+		wantUser    any
+	}{
+		{
+			name:        "params user takes precedence",
+			paramsUser:  "params-user",
+			defaultUser: "default-user",
+			wantUser:    "params-user",
+		},
+		{
+			name:        "default user used when params user empty",
+			paramsUser:  "",
+			defaultUser: "default-user",
+			wantUser:    "default-user",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var capturedBody map[string]any
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				raw, _ := io.ReadAll(r.Body)
+				_ = json.Unmarshal(raw, &capturedBody)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{
+					"id": "chatcmpl-test",
+					"object": "chat.completion",
+					"created": 1700000000,
+					"model": "test-model",
+					"choices": [{
+						"index": 0,
+						"message": {"role": "assistant", "content": "hello"},
+						"finish_reason": "stop"
+					}],
+					"usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8}
+				}`))
+			}))
+			t.Cleanup(srv.Close)
+
+			opts := []config.Option{
+				config.WithAPIKey("test-key"),
+				config.WithBaseURL(srv.URL),
+			}
+			if tc.defaultUser != "" {
+				opts = append(opts, config.WithUserID(tc.defaultUser))
+			}
+
+			baseCfg := CompatibleConfig{
+				Name: "test-provider",
+				Capabilities: providers.Capabilities{
+					Completion: true,
+				},
+			}
+
+			provider, err := NewCompatible(baseCfg, opts...)
+			require.NoError(t, err)
+
+			params := providers.CompletionParams{
+				Model:    "test-model",
+				Messages: []providers.Message{{Role: providers.RoleUser, Content: "Hello"}},
+				User:     tc.paramsUser,
+			}
+
+			_, err = provider.Completion(context.Background(), params)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantUser, capturedBody["user"])
+		})
+	}
+}
+
+func TestConvertResponseCachedTokens(t *testing.T) {
+	t.Parallel()
+
+	t.Run("maps cached_tokens to CacheReadInputTokens", func(t *testing.T) {
+		t.Parallel()
+
+		resp := &openai.ChatCompletion{
+			ID:      "test-id",
+			Object:  objectChatCompletion,
+			Created: 1700000000,
+			Model:   "test-model",
+			Choices: []openai.ChatCompletionChoice{
+				{
+					Index:        0,
+					FinishReason: "stop",
+					Message: openai.ChatCompletionMessage{
+						Role:    "assistant",
+						Content: "hello",
+					},
+				},
+			},
+			Usage: openai.CompletionUsage{
+				PromptTokens:     10,
+				CompletionTokens: 5,
+				TotalTokens:      15,
+				PromptTokensDetails: openai.CompletionUsagePromptTokensDetails{
+					CachedTokens: 3,
+				},
+			},
+		}
+
+		result := convertResponse(resp)
+		require.NotNil(t, result.Usage)
+		require.Equal(t, 10, result.Usage.PromptTokens)
+		require.Equal(t, 5, result.Usage.CompletionTokens)
+		require.Equal(t, 15, result.Usage.TotalTokens)
+		require.Equal(t, 3, result.Usage.CacheReadInputTokens)
+	})
+
+	t.Run("preserves reasoning tokens mapping", func(t *testing.T) {
+		t.Parallel()
+
+		resp := &openai.ChatCompletion{
+			ID:      "test-id",
+			Object:  objectChatCompletion,
+			Created: 1700000000,
+			Model:   "test-model",
+			Choices: []openai.ChatCompletionChoice{
+				{
+					Index:        0,
+					FinishReason: "stop",
+					Message: openai.ChatCompletionMessage{
+						Role:    "assistant",
+						Content: "hello",
+					},
+				},
+			},
+			Usage: openai.CompletionUsage{
+				PromptTokens:     10,
+				CompletionTokens: 5,
+				TotalTokens:      15,
+				CompletionTokensDetails: openai.CompletionUsageCompletionTokensDetails{
+					ReasoningTokens: 2,
+				},
+			},
+		}
+
+		result := convertResponse(resp)
+		require.NotNil(t, result.Usage)
+		require.Equal(t, 2, result.Usage.ReasoningTokens)
+	})
+
+	t.Run("no usage when all zero", func(t *testing.T) {
+		t.Parallel()
+
+		resp := &openai.ChatCompletion{
+			ID:      "test-id",
+			Object:  objectChatCompletion,
+			Created: 1700000000,
+			Model:   "test-model",
+			Choices: []openai.ChatCompletionChoice{
+				{
+					Index:        0,
+					FinishReason: "stop",
+					Message: openai.ChatCompletionMessage{
+						Role:    "assistant",
+						Content: "hello",
+					},
+				},
+			},
+			Usage: openai.CompletionUsage{},
+		}
+
+		result := convertResponse(resp)
+		require.Nil(t, result.Usage)
+	})
+}
+
+func TestConvertChunkCachedTokens(t *testing.T) {
+	t.Parallel()
+
+	t.Run("maps cached_tokens in chunk", func(t *testing.T) {
+		t.Parallel()
+
+		chunk := &openai.ChatCompletionChunk{
+			ID:      "test-chunk",
+			Created: 1700000000,
+			Model:   "test-model",
+			Choices: []openai.ChatCompletionChunkChoice{
+				{
+					Index: 0,
+					Delta: openai.ChatCompletionChunkChoiceDelta{
+						Role:    "assistant",
+						Content: "hello",
+					},
+				},
+			},
+			Usage: openai.CompletionUsage{
+				PromptTokens:     10,
+				CompletionTokens: 5,
+				TotalTokens:      15,
+				PromptTokensDetails: openai.CompletionUsagePromptTokensDetails{
+					CachedTokens: 3,
+				},
+			},
+		}
+
+		result := convertChunk(chunk)
+		require.NotNil(t, result.Usage)
+		require.Equal(t, 10, result.Usage.PromptTokens)
+		require.Equal(t, 5, result.Usage.CompletionTokens)
+		require.Equal(t, 15, result.Usage.TotalTokens)
+		require.Equal(t, 3, result.Usage.CacheReadInputTokens)
+	})
+
+	t.Run("no usage when all zero", func(t *testing.T) {
+		t.Parallel()
+
+		chunk := &openai.ChatCompletionChunk{
+			ID:      "test-chunk",
+			Created: 1700000000,
+			Model:   "test-model",
+			Choices: []openai.ChatCompletionChunkChoice{},
+			Usage:   openai.CompletionUsage{},
+		}
+
+		result := convertChunk(chunk)
+		require.Nil(t, result.Usage)
+	})
+}
+
+func TestConvertAPIErrorRateLimitWithHeaders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populates rate limit headers from response", func(t *testing.T) {
+		t.Parallel()
+
+		err := convertAPIError("test-provider", &openai.Error{
+			StatusCode: 429,
+			Code:       apiCodeRateLimitExceeded,
+			Message:    "rate limited",
+			Response: &http.Response{
+				StatusCode: 429,
+				Header: http.Header{
+					"Retry-After":                  {"30"},
+					"X-RateLimit-Remaining-Tokens": {"100"},
+				},
+			},
+		}, stderrors.New("rate limit exceeded"))
+
+		var rateErr *errors.RateLimitError
+		require.ErrorAs(t, err, &rateErr)
+		require.Equal(t, "test-provider", rateErr.Provider)
+		require.NotNil(t, rateErr.Headers)
+		require.Equal(t, "30", rateErr.Headers["Retry-After"])
+		require.Equal(t, "30", rateErr.Headers["Retry-After"])
+		require.Equal(t, 30, rateErr.RetryAfter)
+	})
+
+	t.Run("falls back to basic rate limit error when response is nil", func(t *testing.T) {
+		t.Parallel()
+
+		err := convertAPIError("test-provider", &openai.Error{
+			StatusCode: 429,
+			Code:       apiCodeRateLimitExceeded,
+			Message:    "rate limited",
+			Response:   nil,
+		}, stderrors.New("rate limit exceeded"))
+
+		var rateErr *errors.RateLimitError
+		require.ErrorAs(t, err, &rateErr)
+		require.Equal(t, "test-provider", rateErr.Provider)
+		require.Nil(t, rateErr.Headers)
+		require.Equal(t, 0, rateErr.RetryAfter)
 	})
 }
 

@@ -77,7 +77,7 @@ func TestConvertMessages(t *testing.T) {
 			{Role: providers.RoleUser, Content: "Hello"},
 		}
 
-		result, system := convertMessages(messages)
+		result, system := convertMessages(messages, new(config.Config).Logger())
 
 		require.Equal(t, "You are a helpful assistant.", system)
 		require.Len(t, result, 1) // Only user message.
@@ -92,7 +92,7 @@ func TestConvertMessages(t *testing.T) {
 			{Role: providers.RoleUser, Content: "Hello"},
 		}
 
-		result, system := convertMessages(messages)
+		result, system := convertMessages(messages, new(config.Config).Logger())
 
 		require.Equal(t, "First part.\nSecond part.", system)
 		require.Len(t, result, 1)
@@ -105,7 +105,7 @@ func TestConvertMessages(t *testing.T) {
 			{Role: providers.RoleUser, Content: "Hello"},
 		}
 
-		result, system := convertMessages(messages)
+		result, system := convertMessages(messages, new(config.Config).Logger())
 
 		require.Empty(t, system)
 		require.Len(t, result, 1)
@@ -119,7 +119,7 @@ func TestConvertMessages(t *testing.T) {
 			{Role: providers.RoleAssistant, Content: "Hi there!"},
 		}
 
-		result, system := convertMessages(messages)
+		result, system := convertMessages(messages, new(config.Config).Logger())
 
 		require.Empty(t, system)
 		require.Len(t, result, 2)
@@ -146,7 +146,7 @@ func TestConvertMessages(t *testing.T) {
 			},
 		}
 
-		result, _ := convertMessages(messages)
+		result, _ := convertMessages(messages, new(config.Config).Logger())
 
 		require.Len(t, result, 2)
 	})
@@ -170,7 +170,7 @@ func TestConvertMessages(t *testing.T) {
 			{Role: providers.RoleTool, Content: "sunny, 22°C", ToolCallID: "call_123"},
 		}
 
-		result, _ := convertMessages(messages)
+		result, _ := convertMessages(messages, new(config.Config).Logger())
 
 		require.Len(t, result, 3)
 	})
@@ -450,7 +450,7 @@ func TestConvertMessage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := convertMessage(tc.msg)
+			result := convertMessage(tc.msg, new(config.Config).Logger())
 			if tc.expectNil {
 				require.Nil(t, result)
 			} else {
@@ -1288,7 +1288,299 @@ func TestConvertError(t *testing.T) {
 	}
 }
 
+func TestCacheControlOnContentPart(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		msg       providers.Message
+		wantCache bool
+		wantTTL   string
+	}{
+		{
+			name: "image with cache control",
+			msg: providers.Message{
+				Role: providers.RoleUser,
+				Content: []providers.ContentPart{
+					{Type: "text", Text: "Hello"},
+					{
+						Type:     "image_url",
+						ImageURL: &providers.ImageURL{URL: "https://example.com/img.png"},
+						CacheControl: &providers.CacheControlParam{
+							Type: providers.CacheControlTypeEphemeral,
+							TTL:  providers.CacheControlTTL1h,
+						},
+					},
+				},
+			},
+			wantCache: true,
+			wantTTL:   "1h",
+		},
+		{
+			name: "image without cache control",
+			msg: providers.Message{
+				Role: providers.RoleUser,
+				Content: []providers.ContentPart{
+					{Type: "text", Text: "Hello"},
+					{
+						Type:     "image_url",
+						ImageURL: &providers.ImageURL{URL: "https://example.com/img.png"},
+					},
+				},
+			},
+			wantCache: false,
+		},
+		{
+			name: "text only message",
+			msg: providers.Message{
+				Role:    providers.RoleUser,
+				Content: "Hello",
+			},
+			wantCache: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := convertUserMessage(tc.msg, new(config.Config).Logger())
+			require.NotNil(t, result)
+
+			data, err := json.Marshal(result)
+			require.NoError(t, err)
+
+			if tc.wantCache {
+				require.Contains(t, string(data), "cache_control")
+				require.Contains(t, string(data), tc.wantTTL)
+			}
+		})
+	}
+}
+
+func TestConvertParamsDefaultUser(t *testing.T) {
+	t.Parallel()
+
+	t.Run("sets user from params.User", func(t *testing.T) {
+		t.Parallel()
+
+		provider, err := New(config.WithAPIKey("test-key"))
+		require.NoError(t, err)
+
+		params := providers.CompletionParams{
+			Model: "claude-sonnet-4-6",
+			Messages: []providers.Message{
+				{Role: providers.RoleUser, Content: "Hello"},
+			},
+			User: "explicit-user",
+		}
+
+		req, err := provider.convertParams(params)
+		require.NoError(t, err)
+		require.Equal(t, "explicit-user", req.Metadata.UserID.Value)
+	})
+
+	t.Run("falls back to DefaultUser when params.User is empty", func(t *testing.T) {
+		t.Parallel()
+
+		provider, err := New(config.WithAPIKey("test-key"), config.WithUserID("default-user"))
+		require.NoError(t, err)
+
+		params := providers.CompletionParams{
+			Model: "claude-sonnet-4-6",
+			Messages: []providers.Message{
+				{Role: providers.RoleUser, Content: "Hello"},
+			},
+		}
+
+		req, err := provider.convertParams(params)
+		require.NoError(t, err)
+		require.Equal(t, "default-user", req.Metadata.UserID.Value)
+	})
+
+	t.Run("params.User takes precedence over DefaultUser", func(t *testing.T) {
+		t.Parallel()
+
+		provider, err := New(config.WithAPIKey("test-key"), config.WithUserID("default-user"))
+		require.NoError(t, err)
+
+		params := providers.CompletionParams{
+			Model: "claude-sonnet-4-6",
+			Messages: []providers.Message{
+				{Role: providers.RoleUser, Content: "Hello"},
+			},
+			User: "explicit-user",
+		}
+
+		req, err := provider.convertParams(params)
+		require.NoError(t, err)
+		require.Equal(t, "explicit-user", req.Metadata.UserID.Value)
+	})
+
+	t.Run("omits metadata when no user set", func(t *testing.T) {
+		t.Parallel()
+
+		provider, err := New(config.WithAPIKey("test-key"))
+		require.NoError(t, err)
+
+		params := providers.CompletionParams{
+			Model: "claude-sonnet-4-6",
+			Messages: []providers.Message{
+				{Role: providers.RoleUser, Content: "Hello"},
+			},
+		}
+
+		req, err := provider.convertParams(params)
+		require.NoError(t, err)
+		require.Empty(t, req.Metadata.UserID.Valid(), "expected metadata.user_id to be omitted")
+	})
+}
+
+func TestConvertResponseCacheUsage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input *anthropic.Message
+		want  *providers.Usage
+	}{
+		{
+			name: "cache creation and read tokens",
+			input: &anthropic.Message{
+				ID:    "msg_123",
+				Model: "claude-sonnet-4-6",
+				Content: []anthropic.ContentBlockUnion{
+					{Type: "text", Text: "Hello"},
+				},
+				StopReason: anthropic.StopReason("end_turn"),
+				Usage: anthropic.Usage{
+					InputTokens:              10,
+					CacheCreationInputTokens: 5,
+					CacheReadInputTokens:     3,
+					OutputTokens:             20,
+					CacheCreation: anthropic.CacheCreation{
+						Ephemeral1hInputTokens: 5,
+						Ephemeral5mInputTokens: 0,
+					},
+				},
+			},
+			want: &providers.Usage{
+				PromptTokens:             18,
+				CompletionTokens:         20,
+				CacheReadInputTokens:     3,
+				CacheCreationInputTokens: 5,
+				TotalTokens:              38,
+				CacheCreation: &providers.CacheCreation{
+					Ephemeral1hInputTokens: 5,
+					Ephemeral5mInputTokens: 0,
+				},
+			},
+		},
+		{
+			name: "no cache usage",
+			input: &anthropic.Message{
+				ID:    "msg_456",
+				Model: "claude-sonnet-4-6",
+				Content: []anthropic.ContentBlockUnion{
+					{Type: "text", Text: "World"},
+				},
+				StopReason: anthropic.StopReason("end_turn"),
+				Usage: anthropic.Usage{
+					InputTokens:              10,
+					CacheCreationInputTokens: 0,
+					CacheReadInputTokens:     0,
+					OutputTokens:             20,
+				},
+			},
+			want: &providers.Usage{
+				PromptTokens:             10,
+				CompletionTokens:         20,
+				CacheReadInputTokens:     0,
+				CacheCreationInputTokens: 0,
+				TotalTokens:              30,
+				CacheCreation:            nil,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := convertResponse(tc.input)
+			require.NotNil(t, result)
+			require.NotNil(t, result.Usage)
+			require.Equal(t, tc.want.PromptTokens, result.Usage.PromptTokens)
+			require.Equal(t, tc.want.CompletionTokens, result.Usage.CompletionTokens)
+			require.Equal(t, tc.want.CacheReadInputTokens, result.Usage.CacheReadInputTokens)
+			require.Equal(t, tc.want.CacheCreationInputTokens, result.Usage.CacheCreationInputTokens)
+			require.Equal(t, tc.want.TotalTokens, result.Usage.TotalTokens)
+			if tc.want.CacheCreation == nil {
+				require.Nil(t, result.Usage.CacheCreation)
+			} else {
+				require.NotNil(t, result.Usage.CacheCreation)
+				require.Equal(t, tc.want.CacheCreation.Ephemeral1hInputTokens, result.Usage.CacheCreation.Ephemeral1hInputTokens)
+				require.Equal(t, tc.want.CacheCreation.Ephemeral5mInputTokens, result.Usage.CacheCreation.Ephemeral5mInputTokens)
+			}
+		})
+	}
+}
+
+func TestConvertErrorRateLimitHeaders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populates rate-limit headers from response", func(t *testing.T) {
+		t.Parallel()
+
+		testURL, _ := url.Parse("https://api.anthropic.com/v1/messages")
+		apiErr := &anthropic.Error{
+			StatusCode: 429,
+			RequestID:  "req_123",
+			Request:    &http.Request{Method: "POST", URL: testURL},
+			Response: &http.Response{
+				StatusCode: 429,
+				Header: http.Header{
+					"Anthropic-Ratelimit-Requests-Remaining": {"10"},
+					"Anthropic-Ratelimit-Requests-Limit":     {"100"},
+					"Retry-After":                            {"30"},
+				},
+			},
+		}
+
+		p := &Provider{}
+		result := p.ConvertError(apiErr)
+
+		require.NotNil(t, result)
+		var rateErr *errors.RateLimitError
+		require.ErrorAs(t, result, &rateErr)
+		require.NotNil(t, rateErr.Headers)
+		require.Equal(t, "10", rateErr.Headers["Anthropic-Ratelimit-Requests-Remaining"])
+		require.Equal(t, "100", rateErr.Headers["Anthropic-Ratelimit-Requests-Limit"])
+		require.Equal(t, 30, rateErr.RetryAfter)
+	})
+
+	t.Run("falls back to basic RateLimitError when response is nil", func(t *testing.T) {
+		t.Parallel()
+
+		apiErr := &anthropic.Error{
+			StatusCode: 429,
+			RequestID:  "req_456",
+		}
+
+		p := &Provider{}
+		result := p.ConvertError(apiErr)
+
+		require.NotNil(t, result)
+		var rateErr *errors.RateLimitError
+		require.ErrorAs(t, result, &rateErr)
+		require.Nil(t, rateErr.Headers)
+		require.Equal(t, 0, rateErr.RetryAfter)
+	})
+}
+
 // newTestAPIError creates an Anthropic API error for testing.
+// Note: The raw JSON field is unexported, so we can only test status code based conversion.
+
 // Note: The raw JSON field is unexported, so we can only test status code based conversion.
 func newTestAPIError(t *testing.T, statusCode int) *anthropic.Error {
 	t.Helper()

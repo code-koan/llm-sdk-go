@@ -23,3 +23,4 @@
 ## 文件
 
 - [architecture.md](architecture.md) — 项目架构、核心接口、Provider 实现指南
+- [api/cache-and-ratelimit.md](api/cache-and-ratelimit.md) — **待实现**：Cache 数据透传 & Rate Limit 增强方案

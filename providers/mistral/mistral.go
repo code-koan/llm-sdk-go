@@ -153,6 +153,9 @@ func transformRequest(req *oaisdk.ChatCompletionNewParams) {
 
 	// Clear unsupported fields from the request.
 	req.MaxCompletionTokens = param.Opt[int64]{}
+
+	// Mistral API does not accept the user field; clear it to avoid 400 errors.
+	// Use WithUserID for other providers.
 	req.User = param.Opt[string]{}
 	req.ReasoningEffort = ""
 }

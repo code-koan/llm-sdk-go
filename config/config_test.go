@@ -133,6 +133,53 @@ func TestWithBaseURL(t *testing.T) {
 	}
 }
 
+func TestWithUserID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		userID     string
+		wantErr    bool
+		wantUserID string
+	}{
+		{
+			name:       "valid user ID",
+			userID:     "user-123",
+			wantUserID: "user-123",
+		},
+		{
+			name:       "trims whitespace",
+			userID:     "  user-123  ",
+			wantUserID: "user-123",
+		},
+		{
+			name:    "empty user ID",
+			userID:  "",
+			wantErr: true,
+		},
+		{
+			name:    "whitespace only user ID",
+			userID:  "   ",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg, err := New(WithUserID(tc.userID))
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tc.wantUserID, cfg.DefaultUser)
+		})
+	}
+}
+
 func TestWithTimeout(t *testing.T) {
 	t.Parallel()
 
