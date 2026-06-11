@@ -303,10 +303,6 @@ func NewUnsupportedParamError(provider string, param string) *UnsupportedParamEr
 	}
 }
 
-func collectRateLimitHeaders(headers http.Header) map[string]string {
-	return collectRateLimitHeadersWithKeys(headers, DefaultRateLimitHeaderKeys)
-}
-
 func collectRateLimitHeadersWithKeys(headers http.Header, keys []string) map[string]string {
 	result := make(map[string]string)
 	for _, key := range keys {

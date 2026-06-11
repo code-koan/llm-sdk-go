@@ -300,7 +300,10 @@ func (p *Provider) CompletionStream(
 			return
 		}
 
-		stream := p.client.Messages.NewStreaming(ctx, req, requestOptions(params.Headers, params.Extra, params.OverrideBody)...)
+		stream := p.client.Messages.NewStreaming(
+			ctx,
+			req,
+			requestOptions(params.Headers, params.Extra, params.OverrideBody)...)
 		state := newStreamState()
 
 		for stream.Next() {
@@ -491,7 +494,11 @@ var anthropicStandardFields = map[string]bool{
 }
 
 // requestOptions converts headers, Extra, and OverrideBody into anthropic SDK request options.
-func requestOptions(headers map[string]string, extra map[string]any, overrideBody map[string]any) []option.RequestOption {
+func requestOptions(
+	headers map[string]string,
+	extra map[string]any,
+	overrideBody map[string]any,
+) []option.RequestOption {
 	n := len(headers) + len(extra) + len(overrideBody)
 	if n == 0 {
 		return nil

@@ -367,7 +367,12 @@ func (p *Provider) createRequest(params providers.CompletionParams, stream bool)
 }
 
 // doRequest sends an HTTP request to the z.ai API.
-func (p *Provider) doRequest(ctx context.Context, method, endpoint string, body any, headers ...map[string]string) (*http.Response, error) {
+func (p *Provider) doRequest(
+	ctx context.Context,
+	method, endpoint string,
+	body any,
+	headers ...map[string]string,
+) (*http.Response, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
