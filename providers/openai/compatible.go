@@ -47,6 +47,27 @@ const (
 	responseFormatJSONSchema = "json_schema"
 )
 
+// standardFieldNames are the standard chat completion request field names that
+// Extra must not collide with. Sorted alphabetically for maintainability.
+var standardFieldNames = map[string]bool{
+	"max_completion_tokens": true,
+	"max_tokens":            true,
+	"messages":              true,
+	"model":                 true,
+	"parallel_tool_calls":   true,
+	"reasoning_effort":      true,
+	"response_format":       true,
+	"seed":                  true,
+	"stop":                  true,
+	"stream":                true,
+	"stream_options":        true,
+	"temperature":           true,
+	"tool_choice":           true,
+	"tools":                 true,
+	"top_p":                 true,
+	"user":                  true,
+}
+
 // CompatibleConfig contains the configuration for an OpenAI-compatible provider.
 // Fields are ordered alphabetically.
 type CompatibleConfig struct {
@@ -152,6 +173,10 @@ func (p *CompatibleProvider) Completion(
 		return nil, err
 	}
 
+	if err := validateExtraFields(params.Extra, p.compatibleConfig.Name); err != nil {
+		return nil, err
+	}
+
 	log := p.cfg.Logger()
 	log.Debug("Completion request",
 		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
@@ -161,12 +186,13 @@ func (p *CompatibleProvider) Completion(
 		config.Field{Key: "stream", Value: false},
 	)
 
-	req := convertParams(params)
+	req := convertParams(params, p.cfg.DefaultUser)
 	if p.compatibleConfig.ChatCompletionRequestTransform != nil {
 		p.compatibleConfig.ChatCompletionRequestTransform(&req)
 	}
 
-	resp, err := p.client.Chat.Completions.New(ctx, req)
+	opts := optionsFromParams(params)
+	resp, err := p.client.Chat.Completions.New(ctx, req, opts...)
 	if err != nil {
 		log.Debug("Completion error",
 			config.Field{Key: "provider", Value: p.compatibleConfig.Name},
@@ -198,6 +224,14 @@ func (p *CompatibleProvider) CompletionStream(
 	chunks := make(chan providers.ChatCompletionChunk)
 	errs := make(chan error, 1)
 
+	// Validate Extra fields before spawning goroutine to avoid
+	// spawning a goroutine just to immediately fail.
+	if err := validateExtraFields(params.Extra, p.compatibleConfig.Name); err != nil {
+		errs <- err
+		close(chunks)
+		return chunks, errs
+	}
+
 	go func() {
 		defer close(chunks)
 		defer close(errs)
@@ -216,11 +250,12 @@ func (p *CompatibleProvider) CompletionStream(
 			config.Field{Key: "stream", Value: true},
 		)
 
-		req := convertParams(params)
+		req := convertParams(params, p.cfg.DefaultUser)
 		if p.compatibleConfig.ChatCompletionRequestTransform != nil {
 			p.compatibleConfig.ChatCompletionRequestTransform(&req)
 		}
-		stream := p.client.Chat.Completions.NewStreaming(ctx, req)
+		opts := optionsFromParams(params)
+		stream := p.client.Chat.Completions.NewStreaming(ctx, req, opts...)
 
 		var lastModel string
 		var lastUsage *providers.Usage
@@ -301,7 +336,7 @@ func (p *CompatibleProvider) Embedding(
 		config.Field{Key: "model", Value: params.Model},
 	)
 
-	req := convertEmbeddingParams(params)
+	req := convertEmbeddingParams(params, p.cfg.DefaultUser)
 
 	resp, err := p.client.Embeddings.New(ctx, req)
 	if err != nil {
@@ -369,6 +404,9 @@ func convertAPIError(name string, apiErr *openai.Error, originalErr error) error
 	case 404:
 		return errors.NewModelNotFoundError(name, originalErr)
 	case 429:
+		if apiErr.Response != nil && apiErr.Response.Header != nil {
+			return errors.NewRateLimitErrorWithHeaders(name, originalErr, apiErr.Response.Header)
+		}
 		return errors.NewRateLimitError(name, originalErr)
 	}
 
@@ -379,6 +417,9 @@ func convertAPIError(name string, apiErr *openai.Error, originalErr error) error
 	case apiCodeModelNotFound:
 		return errors.NewModelNotFoundError(name, originalErr)
 	case apiCodeRateLimitExceeded:
+		if apiErr.Response != nil && apiErr.Response.Header != nil {
+			return errors.NewRateLimitErrorWithHeaders(name, originalErr, apiErr.Response.Header)
+		}
 		return errors.NewRateLimitError(name, originalErr)
 	}
 
@@ -455,13 +496,19 @@ func convertChunk(chunk *openai.ChatCompletionChunk) providers.ChatCompletionChu
 			CompletionTokens: int(chunk.Usage.CompletionTokens),
 			TotalTokens:      int(chunk.Usage.TotalTokens),
 		}
+		if chunk.Usage.PromptTokensDetails.CachedTokens > 0 {
+			result.Usage.CacheReadInputTokens = int(chunk.Usage.PromptTokensDetails.CachedTokens)
+		}
+		if chunk.Usage.CompletionTokensDetails.ReasoningTokens > 0 {
+			result.Usage.ReasoningTokens = int(chunk.Usage.CompletionTokensDetails.ReasoningTokens)
+		}
 	}
 
 	return result
 }
 
 // convertEmbeddingParams converts provider embedding params to OpenAI format.
-func convertEmbeddingParams(params providers.EmbeddingParams) openai.EmbeddingNewParams {
+func convertEmbeddingParams(params providers.EmbeddingParams, defaultUser string) openai.EmbeddingNewParams {
 	req := openai.EmbeddingNewParams{
 		Model: openai.EmbeddingModel(params.Model),
 	}
@@ -490,8 +537,12 @@ func convertEmbeddingParams(params providers.EmbeddingParams) openai.EmbeddingNe
 		req.Dimensions = openai.Int(int64(*params.Dimensions))
 	}
 
-	if params.User != "" {
-		req.User = openai.String(params.User)
+	user := params.User
+	if user == "" {
+		user = defaultUser
+	}
+	if user != "" {
+		req.User = openai.String(user)
 	}
 
 	return req
@@ -556,7 +607,7 @@ func convertMessages(messages []providers.Message) ([]openai.ChatCompletionMessa
 }
 
 // convertParams converts providers.CompletionParams to OpenAI request parameters.
-func convertParams(params providers.CompletionParams) openai.ChatCompletionNewParams {
+func convertParams(params providers.CompletionParams, defaultUser string) openai.ChatCompletionNewParams {
 	messages, _ := convertMessages(params.Messages) // Error already checked in validateCompletionParams
 
 	req := openai.ChatCompletionNewParams{
@@ -602,8 +653,12 @@ func convertParams(params providers.CompletionParams) openai.ChatCompletionNewPa
 		req.Seed = openai.Int(int64(*params.Seed))
 	}
 
-	if params.User != "" {
-		req.User = openai.String(params.User)
+	user := params.User
+	if user == "" {
+		user = defaultUser
+	}
+	if user != "" {
+		req.User = openai.String(user)
 	}
 
 	if params.ReasoningEffort != "" && params.ReasoningEffort != providers.ReasoningEffortNone {
@@ -617,6 +672,21 @@ func convertParams(params providers.CompletionParams) openai.ChatCompletionNewPa
 	}
 
 	return req
+}
+
+// optionsFromParams builds per-request OpenAI SDK options from headers, Extra, and OverrideBody.
+func optionsFromParams(params providers.CompletionParams) []option.RequestOption {
+	var opts []option.RequestOption
+	for k, v := range params.Headers {
+		opts = append(opts, option.WithHeader(k, v))
+	}
+	for k, v := range params.Extra {
+		opts = append(opts, option.WithJSONSet(k, v))
+	}
+	for k, v := range params.OverrideBody {
+		opts = append(opts, option.WithJSONSet(k, v))
+	}
+	return opts
 }
 
 // convertResponse converts an OpenAI response to provider format.
@@ -647,6 +717,9 @@ func convertResponse(resp *openai.ChatCompletion) *providers.ChatCompletion {
 		}
 		if resp.Usage.CompletionTokensDetails.ReasoningTokens > 0 {
 			result.Usage.ReasoningTokens = int(resp.Usage.CompletionTokensDetails.ReasoningTokens)
+		}
+		if resp.Usage.PromptTokensDetails.CachedTokens > 0 {
+			result.Usage.CacheReadInputTokens = int(resp.Usage.PromptTokensDetails.CachedTokens)
 		}
 	}
 
@@ -778,6 +851,16 @@ func resolveAPIKey(cfg *config.Config, compatCfg CompatibleConfig) string {
 func validateCompatibleConfig(cfg CompatibleConfig) error {
 	if cfg.Name == "" {
 		return fmt.Errorf("provider name is required")
+	}
+	return nil
+}
+
+// validateExtraFields checks that Extra fields don't conflict with standard field names.
+func validateExtraFields(extra map[string]any, providerName string) error {
+	for k := range extra {
+		if standardFieldNames[k] {
+			return errors.NewUnsupportedParamError(providerName, k)
+		}
 	}
 	return nil
 }

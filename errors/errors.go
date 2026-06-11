@@ -3,6 +3,11 @@ package errors
 import (
 	stderrors "errors"
 	"fmt"
+	"math"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Error codes used in BaseError.Code field.
@@ -18,6 +23,30 @@ const (
 	CodeUnsupportedProvider = "unsupported_provider"
 	CodeUnsupportedParam    = "unsupported_parameter"
 )
+
+// Rate-limit headers collected from provider responses.
+var DefaultRateLimitHeaderKeys = []string{
+	"anthropic-ratelimit-input-tokens-limit",
+	"anthropic-ratelimit-input-tokens-remaining",
+	"anthropic-ratelimit-input-tokens-reset",
+	"anthropic-ratelimit-output-tokens-limit",
+	"anthropic-ratelimit-output-tokens-remaining",
+	"anthropic-ratelimit-output-tokens-reset",
+	"anthropic-ratelimit-requests-limit",
+	"anthropic-ratelimit-requests-remaining",
+	"anthropic-ratelimit-requests-reset",
+	"anthropic-ratelimit-tokens-limit",
+	"anthropic-ratelimit-tokens-remaining",
+	"anthropic-ratelimit-tokens-reset",
+	"retry-after",
+	"retry-after-ms",
+	"x-ratelimit-limit-requests",
+	"x-ratelimit-limit-tokens",
+	"x-ratelimit-remaining-requests",
+	"x-ratelimit-remaining-tokens",
+	"x-ratelimit-reset-requests",
+	"x-ratelimit-reset-tokens",
+}
 
 // Sentinel errors for type checking with errors.Is().
 var (
@@ -74,6 +103,7 @@ func (e *BaseError) Unwrap() error {
 // RateLimitError is returned when the API rate limit is exceeded.
 type RateLimitError struct {
 	BaseError
+	Headers    map[string]string
 	RetryAfter int // Seconds until retry is allowed, if known
 }
 
@@ -135,6 +165,29 @@ func NewRateLimitError(provider string, err error) *RateLimitError {
 			sentinel: ErrRateLimit,
 		},
 	}
+}
+
+// NewRateLimitErrorWithHeaders creates a new RateLimitError and populates rate-limit metadata from headers.
+func NewRateLimitErrorWithHeaders(provider string, err error, headers http.Header) *RateLimitError {
+	rateErr := NewRateLimitError(provider, err)
+	PopulateRateLimitHeaders(rateErr, headers)
+	return rateErr
+}
+
+// PopulateRateLimitHeaders populates retry and rate-limit metadata from HTTP headers using default headers.
+func PopulateRateLimitHeaders(err *RateLimitError, headers http.Header) {
+	PopulateRateLimitHeadersWithKeys(err, headers, DefaultRateLimitHeaderKeys)
+}
+
+// PopulateRateLimitHeadersWithKeys populates retry and rate-limit metadata from HTTP headers
+// using a provider-specific key list. Providers can pass custom keys to collect vendor-specific headers.
+func PopulateRateLimitHeadersWithKeys(err *RateLimitError, headers http.Header, keys []string) {
+	if err == nil || headers == nil {
+		return
+	}
+
+	err.Headers = collectRateLimitHeadersWithKeys(headers, keys)
+	err.RetryAfter = parseRetryAfter(headers)
 }
 
 // NewAuthenticationError creates a new AuthenticationError.
@@ -248,4 +301,69 @@ func NewUnsupportedParamError(provider string, param string) *UnsupportedParamEr
 		},
 		Param: param,
 	}
+}
+
+func collectRateLimitHeaders(headers http.Header) map[string]string {
+	return collectRateLimitHeadersWithKeys(headers, DefaultRateLimitHeaderKeys)
+}
+
+func collectRateLimitHeadersWithKeys(headers http.Header, keys []string) map[string]string {
+	result := make(map[string]string)
+	for _, key := range keys {
+		value := headers.Get(key)
+		if value == "" {
+			continue
+		}
+		result[http.CanonicalHeaderKey(key)] = value
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func parseRetryAfter(headers http.Header) int {
+	if ms := parseRetryAfterMs(headers.Get("Retry-After-Ms")); ms > 0 {
+		return ms
+	}
+	return parseRetryAfterValue(headers.Get("Retry-After"))
+}
+
+func parseRetryAfterMs(value string) int {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+
+	ms, err := strconv.Atoi(value)
+	if err != nil || ms <= 0 {
+		return 0
+	}
+	return int(math.Ceil(float64(ms) / 1000))
+}
+
+func parseRetryAfterValue(value string) int {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+
+	seconds, err := strconv.Atoi(value)
+	if err == nil {
+		if seconds <= 0 {
+			return 0
+		}
+		return seconds
+	}
+
+	retryAt, err := http.ParseTime(value)
+	if err != nil {
+		return 0
+	}
+
+	secondsUntil := time.Until(retryAt).Seconds()
+	if secondsUntil <= 0 {
+		return 0
+	}
+	return int(math.Ceil(secondsUntil))
 }

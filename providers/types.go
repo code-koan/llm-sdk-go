@@ -14,6 +14,17 @@ const (
 	FinishReasonToolCalls     = "tool_calls"
 )
 
+// Cache control types.
+const (
+	CacheControlTypeEphemeral CacheControlType = "ephemeral"
+)
+
+// Cache control TTL values.
+const (
+	CacheControlTTL5m CacheControlTTL = "5m"
+	CacheControlTTL1h CacheControlTTL = "1h"
+)
+
 // Reasoning effort levels for extended thinking.
 const (
 	ReasoningEffortAuto   ReasoningEffort = "auto"
@@ -69,11 +80,29 @@ type Provider interface {
 	CompletionStream(ctx context.Context, params CompletionParams) (<-chan ChatCompletionChunk, <-chan error)
 }
 
+// CacheControlTTL is the provider-neutral cache control time-to-live value.
+type CacheControlTTL string
+
+// CacheControlType is the provider-neutral cache control type.
+type CacheControlType string
+
 // ProviderData holds provider-specific metadata keyed by field name.
 type ProviderData map[string]any
 
 // ReasoningEffort levels for extended thinking.
 type ReasoningEffort string
+
+// CacheControlParam specifies provider prompt caching behavior for a request element.
+type CacheControlParam struct {
+	TTL  CacheControlTTL  `json:"ttl,omitempty"`
+	Type CacheControlType `json:"type"`
+}
+
+// CacheCreation describes cache creation usage by TTL bucket.
+type CacheCreation struct {
+	Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens,omitempty"`
+	Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens,omitempty"`
+}
 
 // Capabilities describes what features a provider supports.
 type Capabilities struct {
@@ -133,29 +162,33 @@ type ChunkDelta struct {
 
 // CompletionParams represents normalized parameters for chat completion requests.
 type CompletionParams struct {
-	Model             string          `json:"model"`
-	Messages          []Message       `json:"messages"`
-	Temperature       *float64        `json:"temperature,omitempty"`
-	TopP              *float64        `json:"top_p,omitempty"`
-	MaxTokens         *int            `json:"max_tokens,omitempty"`
-	Stop              []string        `json:"stop,omitempty"`
-	Stream            bool            `json:"stream,omitempty"`
-	StreamOptions     *StreamOptions  `json:"stream_options,omitempty"`
-	Tools             []Tool          `json:"tools,omitempty"`
-	ToolChoice        any             `json:"tool_choice,omitempty"`
-	ParallelToolCalls *bool           `json:"parallel_tool_calls,omitempty"`
-	ResponseFormat    *ResponseFormat `json:"response_format,omitempty"`
-	ReasoningEffort   ReasoningEffort `json:"reasoning_effort,omitempty"`
-	Seed              *int            `json:"seed,omitempty"`
-	User              string          `json:"user,omitempty"`
-	Extra             map[string]any  `json:"-"`
+	CacheControl      *CacheControlParam `json:"cache_control,omitempty"`
+	Extra             map[string]any     `json:"-"` // Extra holds per-request JSON body fields merged into the provider request body.
+	Headers           map[string]string  `json:"-"`
+	MaxTokens         *int               `json:"max_tokens,omitempty"`
+	Messages          []Message          `json:"messages"`
+	Model             string             `json:"model"`
+	OverrideBody      map[string]any     `json:"-"`
+	ParallelToolCalls *bool              `json:"parallel_tool_calls,omitempty"`
+	ReasoningEffort   ReasoningEffort    `json:"reasoning_effort,omitempty"`
+	ResponseFormat    *ResponseFormat    `json:"response_format,omitempty"`
+	Seed              *int               `json:"seed,omitempty"`
+	Stop              []string           `json:"stop,omitempty"`
+	Stream            bool               `json:"stream,omitempty"`
+	StreamOptions     *StreamOptions     `json:"stream_options,omitempty"`
+	Temperature       *float64           `json:"temperature,omitempty"`
+	ToolChoice        any                `json:"tool_choice,omitempty"`
+	Tools             []Tool             `json:"tools,omitempty"`
+	TopP              *float64           `json:"top_p,omitempty"`
+	User              string             `json:"user,omitempty"`
 }
 
 // ContentPart represents a part of a multi-modal message.
 type ContentPart struct {
-	Type     string    `json:"type"`
-	Text     string    `json:"text,omitempty"`
-	ImageURL *ImageURL `json:"image_url,omitempty"`
+	CacheControl *CacheControlParam `json:"cache_control,omitempty"`
+	ImageURL     *ImageURL          `json:"image_url,omitempty"`
+	Text         string             `json:"text,omitempty"`
+	Type         string             `json:"type"`
 }
 
 // EmbeddingData represents a single embedding.
@@ -257,8 +290,9 @@ type StreamOptions struct {
 
 // Tool represents a tool/function that can be called.
 type Tool struct {
-	Type     string   `json:"type"`
-	Function Function `json:"function"`
+	CacheControl *CacheControlParam `json:"cache_control,omitempty"`
+	Function     Function           `json:"function"`
+	Type         string             `json:"type"`
 }
 
 // ToolCall represents a tool call made by the assistant.
@@ -285,10 +319,13 @@ type ToolChoiceFunction struct {
 
 // Usage represents token usage information.
 type Usage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
-	ReasoningTokens  int `json:"reasoning_tokens,omitempty"`
+	CacheCreation            *CacheCreation `json:"cache_creation,omitempty"`
+	CacheCreationInputTokens int            `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int            `json:"cache_read_input_tokens,omitempty"`
+	CompletionTokens         int            `json:"completion_tokens"`
+	PromptTokens             int            `json:"prompt_tokens"`
+	ReasoningTokens          int            `json:"reasoning_tokens,omitempty"`
+	TotalTokens              int            `json:"total_tokens"`
 }
 
 // ContentParts extracts content parts from a message.

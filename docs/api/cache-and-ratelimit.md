@@ -1,161 +1,147 @@
-# Cache 数据透传 & Rate Limit 增强
+# Cache and Rate Limit
 
-## 问题
+This page documents user-facing cache, attribution, per-request extension, and rate-limit behavior.
 
-当前 SDK 在两个关键维度缺失数据透传能力：
+## Prompt caching
 
-### Cache 数据全部丢弃
+### OpenAI-compatible providers
 
-| 上游 | 返回数据 | SDK 现状 |
-|------|---------|----------|
-| Anthropic | `usage.cache_read_input_tokens` / `cache_creation_input_tokens` / `cache_creation.ephemeral_1h/5m` | **丢弃** |
-| OpenAI | `usage.prompt_tokens_details.cached_tokens` | **丢弃** |
-| Anthropic 请求 | `cache_control: {type:"ephemeral", ttl:"1h"}` — 2026 年默认 TTL 已从 1h 降为 5m，需显式设置 | **不支持** |
+OpenAI-compatible providers use provider-side automatic prompt caching when the upstream service supports it. There is no SDK request-side `cache_control` field for OpenAI-compatible caching.
 
-`Usage` 只有 `PromptTokens` / `CompletionTokens` / `TotalTokens` / `ReasoningTokens`。
-
-### Rate Limit 不可观测
-
-| 能力 | 现状 |
-|------|------|
-| `RateLimitError.RetryAfter` | 结构体有字段，**从未填充**（两上游 SDK 的 Error 暴露 `Response *http.Response`，可提取） |
-| `X-RateLimit-*` header | 未读取 |
-| 配置级 user 隔离 | 只能每请求手动设 `params.User` |
-
-## 设计方案
-
-分 4 个阶段，全部向后兼容（`omitempty` 字段）：
-
-### Phase A: Cache 响应侧
-
-`Usage` 新增字段：
+Cache hits are surfaced in normalized usage:
 
 ```go
-type Usage struct {
-    // ... existing ...
-    CacheReadInputTokens    int            `json:"cache_read_input_tokens,omitempty"`
-    CacheCreationInputTokens int           `json:"cache_creation_input_tokens,omitempty"`
-    CacheCreation           *CacheCreation `json:"cache_creation,omitempty"`
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
+    Model: "gpt-4.1",
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "large repeated prompt..."},
+    },
+})
+if err != nil {
+    return err
 }
 
-type CacheCreation struct {
-    Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens,omitempty"`
-    Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens,omitempty"`
-}
+fmt.Println("cached input tokens:", resp.Usage.CacheReadInputTokens)
 ```
 
-- Anthropic 原生映射
-- OpenAI `cached_tokens` → `CacheReadInputTokens`
-- 涉及：`types.go`、`anthropic/anthropic.go`、`openai/compatible.go`、`llmsdk.go`
+Mapping:
 
-### Phase B: Cache 请求控制
+- OpenAI `usage.prompt_tokens_details.cached_tokens` → `Usage.CacheReadInputTokens`
+- `Usage.PromptTokens` remains total prompt input tokens, including cached input tokens.
 
-`ContentPart` 新增 `cache_control`：
+### Anthropic explicit cache control
+
+Anthropic prompt caching is explicit. Set `CacheControl` on the request element that should become a cache breakpoint:
+
+- `CompletionParams.CacheControl` for top-level request cache control
+- `ContentPart.CacheControl` for a text/content block
+- `Tool.CacheControl` for tool definitions
+
+Anthropic's default ephemeral cache TTL is 5 minutes. Set `TTL: llmsdk.CacheControlTTL1h` when you need the optional 1 hour TTL.
 
 ```go
-type ContentPart struct {
-    // ... existing ...
-    CacheControl *CacheControlParam `json:"cache_control,omitempty"`
-}
-
-type CacheControlParam struct {
-    Type string `json:"type"`           // "ephemeral"
-    TTL  string `json:"ttl,omitempty"`  // "5m" | "1h"
-}
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
+    Model: "claude-sonnet-4-20250514",
+    Messages: []llmsdk.Message{{
+        Role: llmsdk.RoleUser,
+        Content: []llmsdk.ContentPart{{
+            Type: "text",
+            Text: "large stable context...",
+            CacheControl: &llmsdk.CacheControlParam{
+                Type: llmsdk.CacheControlTypeEphemeral,
+                TTL:  llmsdk.CacheControlTTL1h,
+            },
+        }, {
+            Type: "text",
+            Text: "question about the context",
+        }},
+    }},
+})
 ```
 
-Anthropic provider 映射 `CacheControl` → `anthropic.CacheControlEphemeralParam`。
+Anthropic usage mapping:
 
-### Phase C: Rate Limit 增强
+- `usage.cache_read_input_tokens` → `Usage.CacheReadInputTokens`
+- `usage.cache_creation_input_tokens` → `Usage.CacheCreationInputTokens`
+- `usage.cache_creation.ephemeral_1h_input_tokens` → `Usage.CacheCreation.Ephemeral1hInputTokens`
+- `usage.cache_creation.ephemeral_5m_input_tokens` → `Usage.CacheCreation.Ephemeral5mInputTokens`
+- `Usage.PromptTokens` is total prompt input tokens: Anthropic `input_tokens + cache_creation_input_tokens + cache_read_input_tokens`.
 
-各 provider 从 `apiErr.Response.Header.Get("Retry-After")` 填充 `RateLimitError.RetryAfter`：
+## User attribution
+
+Use `llmsdk.WithUserID` to set a provider default user identifier. Set `CompletionParams.User` to override it for a single request.
 
 ```go
-case 429:
-    rateErr := errors.NewRateLimitError(providerName, err)
-    if apiErr.Response != nil {
-        if ra := apiErr.Response.Header.Get("Retry-After"); ra != "" {
-            if s, _ := strconv.Atoi(ra); s > 0 {
-                rateErr.RetryAfter = s
-            }
+provider, err := openai.New(
+    llmsdk.WithAPIKey("sk-..."),
+    llmsdk.WithUserID("tenant-abc"),
+)
+
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
+    Model: "gpt-4.1",
+    Messages: messages,
+    User: "tenant-override", // optional per-request override
+})
+```
+
+Provider mapping:
+
+- OpenAI-compatible providers: request body `user`
+- Anthropic: request body `metadata.user_id`
+
+## Per-request headers and body extension
+
+`CompletionParams` supports request-local escape hatches for provider-specific features:
+
+```go
+resp, err := provider.Completion(ctx, llmsdk.CompletionParams{
+    Model: "gpt-4.1",
+    Messages: messages,
+    Headers: map[string]string{
+        "OpenAI-Project": "proj_xxx",
+    },
+    Extra: map[string]any{
+        "prompt_cache_key": "tenant-abc-docs-v1",
+    },
+    OverrideBody: map[string]any{
+        "temperature": 0.2,
+    },
+})
+```
+
+Rules:
+
+- `Headers` adds provider request headers for that request only.
+- `Extra` adds non-conflicting JSON body fields for that request.
+- `OverrideBody` explicitly replaces generated JSON body fields for that request.
+- The SDK does not mutate request bodies in a global HTTP transport and does not perform transport-level deep merge.
+- Do not use `Extra` or `OverrideBody` for fields already modeled by `CompletionParams` unless you intentionally need provider-specific override behavior.
+
+## Rate limit errors
+
+Providers normalize rate-limit failures to `llmsdk.ErrRateLimit` and `*llmsdk.RateLimitError`.
+
+```go
+resp, err := provider.Completion(ctx, params)
+if err != nil {
+    if errors.Is(err, llmsdk.ErrRateLimit) {
+        var rateErr *llmsdk.RateLimitError
+        if errors.As(err, &rateErr) {
+            fmt.Println("retry after seconds:", rateErr.RetryAfter)
+            fmt.Println("rate limit headers:", rateErr.Headers)
         }
     }
-    return rateErr
-```
-
-涉及：`errors/errors.go`、`openai/compatible.go`、`anthropic/anthropic.go`、`zai/zai.go`。
-
-### Phase D: WithExtra 请求体注入 & WithUserID
-
-核心思路：**HTTP Transport 层 deep-merge `Config.Extra` 到 JSON 请求体**，零侵入所有 provider。
-
-```go
-// extraFieldsRoundTripper 拦截所有 JSON 请求，deep-merge Config.Extra
-type extraFieldsRoundTripper struct {
-    base  http.RoundTripper
-    extra map[string]any
+    return err
 }
 ```
 
-调用方：
+`RateLimitError.RetryAfter` is populated from provider response headers when available. `RateLimitError.Headers` contains recognized provider rate-limit headers such as `Retry-After`, OpenAI `X-RateLimit-*`, and Anthropic `anthropic-ratelimit-*` headers.
 
-```go
-provider, _ := deepseek.New(
-    deepseek.WithAPIKey("sk-..."),
-    deepseek.WithExtra("user_id", "tenant-abc"),  // 注入任意 JSON 字段
-)
-```
+The SDK does not automatically retry. Applications should decide retry policy, backoff, idempotency, and request cancellation behavior.
 
-`WithUserID` 是对 `WithExtra` 的语义化封装，同时设置 `DefaultUser` 供 provider 层的 `params.User` 路径使用。
+## Boundaries
 
-## API 示例
-
-```go
-// 1. 使用 WithUserID 隔离
-provider, _ := deepseek.New(
-    deepseek.WithAPIKey("sk-..."),
-    deepseek.WithUserID("tenant-abc"),
-)
-
-// 2. 使用 cache_control（Anthropic）
-msgs := []llmsdk.Message{{
-    Role: llmsdk.RoleUser,
-    Content: []llmsdk.ContentPart{{
-        Type:         "text",
-        Text:         "large reference document...",
-        CacheControl: &llmsdk.CacheControlParam{Type: "ephemeral", TTL: "1h"},
-    }, {
-        Type: "text",
-        Text: "user question",
-    }},
-}}
-
-// 3. 读取 cache 命中
-resp, _ := provider.Completion(ctx, params)
-fmt.Println("cache hit:", resp.Usage.CacheReadInputTokens)
-fmt.Println("cache write:", resp.Usage.CacheCreationInputTokens)
-
-// 4. Rate limit 重试
-if errors.Is(err, llmsdk.ErrRateLimit) {
-    var rateErr *llmsdk.RateLimitError
-    errors.As(err, &rateErr)
-    time.Sleep(time.Duration(rateErr.RetryAfter) * time.Second)
-}
-```
-
-## 兼容性
-
-- 所有新增字段均为 `omitempty`，向后兼容
-- `ContentPart.CacheControl` 仅 Anthropic provider 消费，其他 provider 忽略
-- Transport 层的 extra body 注入仅在 `Config.Extra` 非空时激活
-
-## 不改的边界
-
-- 不实现自动重试（调用方职责）
-- 不实现请求队列/令牌桶（上层网关能力）
-- OpenAI 请求侧 cache_control（OpenAI 自动缓存）
-- DeepSeek context caching（不同机制）
-
----
-
-详细实现方案见 `.claude/plans/floating-sprouting-swing.md`
+- OpenAI-compatible prompt caching is automatic provider behavior; the SDK only maps returned cache usage.
+- Anthropic cache control is supported only through the typed `CacheControl` fields above.
+- Per-request `Headers`, `Extra`, and `OverrideBody` are request-local; they are not global provider configuration.
+- No automatic retry, queueing, or token-bucket throttling is implemented by the SDK.

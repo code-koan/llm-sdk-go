@@ -39,6 +39,17 @@ const (
 	FinishReasonToolCalls     = providers.FinishReasonToolCalls
 )
 
+// Cache control types.
+const (
+	CacheControlTypeEphemeral = providers.CacheControlTypeEphemeral
+)
+
+// Cache control TTL values.
+const (
+	CacheControlTTL5m = providers.CacheControlTTL5m
+	CacheControlTTL1h = providers.CacheControlTTL1h
+)
+
 // ReasoningEffort levels.
 const (
 	ReasoningEffortAuto   = providers.ReasoningEffortAuto
@@ -59,6 +70,9 @@ type (
 
 // Request/Response types.
 type (
+	CacheControlParam   = providers.CacheControlParam
+	CacheControlTTL     = providers.CacheControlTTL
+	CacheControlType    = providers.CacheControlType
 	ChatCompletion      = providers.ChatCompletion
 	ChatCompletionChunk = providers.ChatCompletionChunk
 	Choice              = providers.Choice
@@ -97,6 +111,7 @@ type (
 
 // Usage and model types.
 type (
+	CacheCreation   = providers.CacheCreation
 	EmbeddingData   = providers.EmbeddingData
 	EmbeddingUsage  = providers.EmbeddingUsage
 	Model           = providers.Model
@@ -114,13 +129,14 @@ type (
 
 // Configuration options.
 var (
-	NewConfig  = config.New
-	WithAPIKey = config.WithAPIKey
-	WithBaseURL = config.WithBaseURL
-	WithExtra  = config.WithExtra
+	NewConfig      = config.New
+	WithAPIKey     = config.WithAPIKey
+	WithBaseURL    = config.WithBaseURL
+	WithExtra      = config.WithExtra
 	WithHTTPClient = config.WithHTTPClient
-	WithLogger = config.WithLogger
-	WithTimeout = config.WithTimeout
+	WithLogger     = config.WithLogger
+	WithTimeout    = config.WithTimeout
+	WithUserID     = config.WithUserID
 )
 
 // Sentinel errors for type checking with errors.Is().

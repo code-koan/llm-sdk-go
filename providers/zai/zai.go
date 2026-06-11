@@ -107,7 +107,7 @@ func (p *Provider) Completion(
 		return nil, err
 	}
 
-	resp, err := p.doRequest(ctx, "POST", "chat/completions", reqBody)
+	resp, err := p.doRequest(ctx, "POST", "chat/completions", reqBody, params.Headers)
 	if err != nil {
 		log.Debug("Completion error",
 			config.Field{Key: "provider", Value: providerName},
@@ -174,7 +174,7 @@ func (p *Provider) CompletionStream(
 			return
 		}
 
-		resp, err := p.doRequest(ctx, "POST", "chat/completions", reqBody)
+		resp, err := p.doRequest(ctx, "POST", "chat/completions", reqBody, params.Headers)
 		if err != nil {
 			log.Debug("CompletionStream error",
 				config.Field{Key: "provider", Value: providerName},
@@ -255,9 +255,9 @@ func (p *Provider) ListModels(ctx context.Context) (*providers.ModelsResponse, e
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			p.cfg.Logger().Warn("failed to close response body",
-					config.Field{Key: "provider", Value: providerName},
-					config.Field{Key: "error", Value: err.Error()},
-				)
+				config.Field{Key: "provider", Value: providerName},
+				config.Field{Key: "error", Value: err.Error()},
+			)
 		}
 	}()
 
@@ -298,16 +298,23 @@ func (p *Provider) Name() string {
 
 // createRequest converts providers.CompletionParams to a z.ai chat request.
 func (p *Provider) createRequest(params providers.CompletionParams, stream bool) (*chatRequest, error) {
+	userID := params.User
+	if userID == "" && p.cfg != nil {
+		userID = p.cfg.DefaultUser
+	}
+
 	req := &chatRequest{
-		Model:       params.Model,
-		Stream:      stream,
-		Tools:       params.Tools,
-		ToolChoice:  params.ToolChoice,
-		Temperature: params.Temperature,
-		TopP:        params.TopP,
-		MaxTokens:   params.MaxTokens,
-		Stop:        params.Stop,
-		UserID:      params.User,
+		Model:        params.Model,
+		Stream:       stream,
+		Tools:        params.Tools,
+		ToolChoice:   params.ToolChoice,
+		Temperature:  params.Temperature,
+		TopP:         params.TopP,
+		MaxTokens:    params.MaxTokens,
+		Stop:         params.Stop,
+		UserID:       userID,
+		Extra:        params.Extra,
+		OverrideBody: params.OverrideBody,
 	}
 
 	if params.ReasoningEffort != "" && params.ReasoningEffort != providers.ReasoningEffortNone {
@@ -360,7 +367,7 @@ func (p *Provider) createRequest(params providers.CompletionParams, stream bool)
 }
 
 // doRequest sends an HTTP request to the z.ai API.
-func (p *Provider) doRequest(ctx context.Context, method, endpoint string, body any) (*http.Response, error) {
+func (p *Provider) doRequest(ctx context.Context, method, endpoint string, body any, headers ...map[string]string) (*http.Response, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -382,6 +389,13 @@ func (p *Provider) doRequest(ctx context.Context, method, endpoint string, body 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	req.Header.Set("Accept-Language", "en-US,en")
+
+	// Apply per-request headers.
+	if len(headers) > 0 {
+		for k, v := range headers[0] {
+			req.Header.Set(k, v)
+		}
+	}
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
@@ -423,7 +437,7 @@ func (p *Provider) handleErrorResponse(resp *http.Response) error {
 	case 401:
 		return errors.NewAuthenticationError(providerName, fmt.Errorf("%s", msg))
 	case 429:
-		return errors.NewRateLimitError(providerName, fmt.Errorf("%s", msg))
+		return errors.NewRateLimitErrorWithHeaders(providerName, fmt.Errorf("%s", msg), resp.Header)
 	case 404:
 		return errors.NewModelNotFoundError(providerName, fmt.Errorf("%s", msg))
 	case 400:
@@ -537,17 +551,44 @@ func (z *zaiChatCompletionChunk) toProviderChunk() providers.ChatCompletionChunk
 
 // chatRequest represents a z.ai chat completion request body.
 type chatRequest struct {
-	Model       string           `json:"model"`
-	Messages    []messageParam   `json:"messages"`
-	Stream      bool             `json:"stream,omitempty"`
-	Thinking    *thinkingParam   `json:"thinking,omitempty"`
-	Tools       []providers.Tool `json:"tools,omitempty"`
-	ToolChoice  any              `json:"tool_choice,omitempty"`
-	Temperature *float64         `json:"temperature,omitempty"`
-	TopP        *float64         `json:"top_p,omitempty"`
-	MaxTokens   *int             `json:"max_tokens,omitempty"`
-	Stop        []string         `json:"stop,omitempty"`
-	UserID      string           `json:"user_id,omitempty"`
+	Model        string           `json:"model"`
+	Messages     []messageParam   `json:"messages"`
+	Stream       bool             `json:"stream,omitempty"`
+	Thinking     *thinkingParam   `json:"thinking,omitempty"`
+	Tools        []providers.Tool `json:"tools,omitempty"`
+	ToolChoice   any              `json:"tool_choice,omitempty"`
+	Temperature  *float64         `json:"temperature,omitempty"`
+	TopP         *float64         `json:"top_p,omitempty"`
+	MaxTokens    *int             `json:"max_tokens,omitempty"`
+	Stop         []string         `json:"stop,omitempty"`
+	UserID       string           `json:"user_id,omitempty"`
+	Extra        map[string]any   `json:"-"` // Merged into JSON body.
+	OverrideBody map[string]any   `json:"-"` // Replaces keys in JSON body.
+}
+
+// MarshalJSON implements json.Marshaler for chatRequest to merge Extra and OverrideBody fields.
+func (r *chatRequest) MarshalJSON() ([]byte, error) {
+	type chatRequestAlias chatRequest
+	data, err := json.Marshal((*chatRequestAlias)(r))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(r.Extra) == 0 && len(r.OverrideBody) == 0 {
+		return data, nil
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	for k, v := range r.Extra {
+		m[k] = v
+	}
+	for k, v := range r.OverrideBody {
+		m[k] = v
+	}
+	return json.Marshal(m)
 }
 
 // thinkingParam represents the thinking configuration for z.ai.

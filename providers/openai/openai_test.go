@@ -77,7 +77,7 @@ func TestConvertParams(t *testing.T) {
 			},
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.Equal(t, "gpt-4", string(req.Model))
 		require.Len(t, req.Messages, 1)
@@ -95,7 +95,7 @@ func TestConvertParams(t *testing.T) {
 			TopP:        &topP,
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.Equal(t, 0.7, req.Temperature.Value)
 		require.Equal(t, 0.9, req.TopP.Value)
@@ -111,7 +111,7 @@ func TestConvertParams(t *testing.T) {
 			MaxTokens: &maxTokens,
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.Equal(t, int64(100), req.MaxCompletionTokens.Value)
 	})
@@ -125,7 +125,7 @@ func TestConvertParams(t *testing.T) {
 			Stop:     []string{"END", "STOP"},
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.NotNil(t, req.Stop)
 	})
@@ -139,7 +139,7 @@ func TestConvertParams(t *testing.T) {
 			Tools:    []providers.Tool{testutil.WeatherTool()},
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.Len(t, req.Tools, 1)
 	})
@@ -154,7 +154,7 @@ func TestConvertParams(t *testing.T) {
 			ToolChoice: "auto",
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.NotNil(t, req.ToolChoice)
 	})
@@ -169,7 +169,7 @@ func TestConvertParams(t *testing.T) {
 			ToolChoice: "required",
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.NotNil(t, req.ToolChoice)
 	})
@@ -187,7 +187,7 @@ func TestConvertParams(t *testing.T) {
 			},
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.NotNil(t, req.ToolChoice)
 	})
@@ -203,7 +203,7 @@ func TestConvertParams(t *testing.T) {
 			},
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.NotNil(t, req.ResponseFormat)
 	})
@@ -217,7 +217,7 @@ func TestConvertParams(t *testing.T) {
 			ReasoningEffort: providers.ReasoningEffortHigh,
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.NotNil(t, req.ReasoningEffort)
 	})
@@ -232,7 +232,7 @@ func TestConvertParams(t *testing.T) {
 			Seed:     &seed,
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.Equal(t, int64(42), req.Seed.Value)
 	})
@@ -246,7 +246,7 @@ func TestConvertParams(t *testing.T) {
 			User:     "test-user",
 		}
 
-		req := convertParams(params)
+		req := convertParams(params, "")
 
 		require.Equal(t, "test-user", req.User.Value)
 	})

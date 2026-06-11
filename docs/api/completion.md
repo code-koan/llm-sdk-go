@@ -71,33 +71,26 @@ Full parameters for completion requests:
 
 ```go
 type CompletionParams struct {
-    // Model is the model ID to use (required).
-    Model string `json:"model"`
+    // CacheControl sets top-level cache control for providers that support it.
+    CacheControl *CacheControlParam `json:"cache_control,omitempty"`
 
-    // Messages is the conversation history (required).
-    Messages []Message `json:"messages"`
+    // Extra adds non-conflicting provider-specific JSON body fields for this request.
+    Extra map[string]any `json:"-"`
 
-    // Temperature controls randomness (0.0-2.0, default varies by provider).
-    Temperature *float64 `json:"temperature,omitempty"`
-
-    // TopP controls nucleus sampling (0.0-1.0).
-    TopP *float64 `json:"top_p,omitempty"`
+    // Headers adds provider-specific request headers for this request.
+    Headers map[string]string `json:"-"`
 
     // MaxTokens limits the response length.
     MaxTokens *int `json:"max_tokens,omitempty"`
 
-    // Stop sequences that will halt generation.
-    Stop []string `json:"stop,omitempty"`
+    // Messages is the conversation history (required).
+    Messages []Message `json:"messages"`
 
-    // Stream enables streaming responses.
-    Stream bool `json:"stream,omitempty"`
+    // Model is the model ID to use (required).
+    Model string `json:"model"`
 
-    // Tools available for the model to call.
-    Tools []Tool `json:"tools,omitempty"`
-
-    // ToolChoice controls tool selection behavior.
-    // Can be "auto", "none", "required", or a ToolChoice struct.
-    ToolChoice any `json:"tool_choice,omitempty"`
+    // OverrideBody explicitly overrides generated JSON body fields for this request.
+    OverrideBody map[string]any `json:"-"`
 
     // ParallelToolCalls allows multiple tool calls in one response.
     ParallelToolCalls *bool `json:"parallel_tool_calls,omitempty"`
@@ -111,7 +104,26 @@ type CompletionParams struct {
     // Seed for deterministic outputs (if supported).
     Seed *int `json:"seed,omitempty"`
 
-    // User identifier for tracking.
+    // Stop sequences that will halt generation.
+    Stop []string `json:"stop,omitempty"`
+
+    // Stream enables streaming responses.
+    Stream bool `json:"stream,omitempty"`
+
+    // Temperature controls randomness (0.0-2.0, default varies by provider).
+    Temperature *float64 `json:"temperature,omitempty"`
+
+    // ToolChoice controls tool selection behavior.
+    // Can be "auto", "none", "required", or a ToolChoice struct.
+    ToolChoice any `json:"tool_choice,omitempty"`
+
+    // Tools available for the model to call.
+    Tools []Tool `json:"tools,omitempty"`
+
+    // TopP controls nucleus sampling (0.0-1.0).
+    TopP *float64 `json:"top_p,omitempty"`
+
+    // User identifier for tracking. Overrides WithUserID for this request.
     User string `json:"user,omitempty"`
 }
 ```
@@ -156,6 +168,72 @@ message := llmsdk.Message{
         }},
     },
 }
+```
+
+## Cache Control and Per-Request Extensions
+
+### Anthropic Cache Control
+
+Anthropic supports explicit prompt caching through `CacheControl` on `CompletionParams`, `ContentPart`, and `Tool`. The default Anthropic ephemeral TTL is 5 minutes; set `CacheControlTTL1h` for the optional 1 hour TTL.
+
+```go
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
+    Model: "claude-sonnet-4-20250514",
+    Messages: []llmsdk.Message{{
+        Role: llmsdk.RoleUser,
+        Content: []llmsdk.ContentPart{{
+            Type: "text",
+            Text: "large stable context...",
+            CacheControl: &llmsdk.CacheControlParam{
+                Type: llmsdk.CacheControlTypeEphemeral,
+                TTL:  llmsdk.CacheControlTTL1h,
+            },
+        }},
+    }},
+})
+```
+
+OpenAI-compatible providers use upstream automatic prompt caching when available; the SDK maps returned cache usage but does not send OpenAI cache-control request fields.
+
+### Headers, Extra, and OverrideBody
+
+Use per-request escape hatches for provider-specific options:
+
+```go
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
+    Model: "gpt-4.1",
+    Messages: messages,
+    Headers: map[string]string{
+        "OpenAI-Project": "proj_xxx",
+    },
+    Extra: map[string]any{
+        "prompt_cache_key": "tenant-abc-docs-v1",
+    },
+    OverrideBody: map[string]any{
+        "temperature": 0.2,
+    },
+})
+```
+
+`Extra` only adds non-conflicting JSON body fields. `OverrideBody` is for explicit overrides. The SDK does not perform transport-level deep merge.
+
+### Default and Per-Request User IDs
+
+`llmsdk.WithUserID` sets a provider default user identifier. `CompletionParams.User` overrides it for one request. OpenAI-compatible providers send `user`; Anthropic sends `metadata.user_id`.
+
+```go
+provider, _ := openai.New(
+    llmsdk.WithAPIKey("sk-..."),
+    llmsdk.WithUserID("tenant-abc"),
+)
+
+response, err := provider.Completion(ctx, llmsdk.CompletionParams{
+    Model: "gpt-4.1",
+    Messages: []llmsdk.Message{
+        {Role: llmsdk.RoleUser, Content: "Hello"},
+    },
+    User: "tenant-override", // optional per-request override
+})
 ```
 
 ## Response Types
