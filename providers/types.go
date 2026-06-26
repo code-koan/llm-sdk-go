@@ -54,6 +54,15 @@ type EmbeddingProvider interface {
 	Embedding(ctx context.Context, params EmbeddingParams) (*EmbeddingResponse, error)
 }
 
+// AsyncTaskProvider is an optional interface for providers that support
+// asynchronous generation tasks (video, image, audio, music).
+// All vendors follow the same pattern: submit a task, then poll for results.
+type AsyncTaskProvider interface {
+	Provider
+	SubmitTask(ctx context.Context, params AsyncTaskParams) (*AsyncTask, error)
+	GetTask(ctx context.Context, taskID string) (*AsyncTask, error)
+}
+
 // ErrorConverter converts provider-specific SDK errors to unified error types.
 // This interface ensures all providers implement consistent error handling.
 type ErrorConverter interface {
@@ -106,6 +115,7 @@ type CacheCreation struct {
 
 // Capabilities describes what features a provider supports.
 type Capabilities struct {
+	AsyncGeneration     bool // Async generation (video, image, audio, music)
 	Completion          bool
 	CompletionImage     bool
 	CompletionPDF       bool
@@ -238,6 +248,7 @@ type FunctionCall struct {
 type ImageURL struct {
 	URL    string `json:"url"`
 	Detail string `json:"detail,omitempty"`
+	Role   string `json:"role,omitempty"` // "first_frame" | "last_frame" | "reference"
 }
 
 // JSONSchema for structured output.
@@ -368,3 +379,41 @@ func (m *Message) ContentString() string {
 func (m *Message) IsMultiModal() bool {
 	return m.ContentParts() != nil
 }
+
+// AsyncTaskParams represents parameters for async generation tasks.
+// Content accepts string (text prompt) or []ContentPart (image/video/audio inputs).
+// Extra carries vendor-specific parameters (resolution, duration, voice, etc.).
+type AsyncTaskParams struct {
+	Content any            `json:"content"`
+	Extra   map[string]any `json:"-"`
+	Model   string         `json:"model"`
+}
+
+// AsyncTask represents an async generation task result.
+type AsyncTask struct {
+	ID        string          `json:"id"`
+	Error     *AsyncTaskError `json:"error,omitempty"`
+	Extra     map[string]any  `json:"-"`
+	Model     string          `json:"model"`
+	ResultURL string          `json:"result_url,omitempty"`
+	Status    AsyncTaskStatus `json:"status"`
+	Usage     *Usage          `json:"usage,omitempty"`
+}
+
+// AsyncTaskError represents an error from an async generation task.
+type AsyncTaskError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// AsyncTaskStatus represents the status of an async generation task.
+type AsyncTaskStatus string
+
+// Async task status constants.
+const (
+	AsyncTaskExpired   AsyncTaskStatus = "expired"
+	AsyncTaskFailed    AsyncTaskStatus = "failed"
+	AsyncTaskQueued    AsyncTaskStatus = "queued"
+	AsyncTaskRunning   AsyncTaskStatus = "running"
+	AsyncTaskSucceeded AsyncTaskStatus = "succeeded"
+)

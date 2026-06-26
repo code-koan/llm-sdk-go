@@ -16,11 +16,16 @@
 - 结构化错误归一化（限流、认证、上下文超长等）
 - 零依赖 Logger 接口，默认 no-op
 
-## 在 monorepo 中的位置
-
-被 `aix` 作为 LLM 调用层依赖，是所有 Go 服务访问 LLM 的唯一入口。
-
 ## 文件
 
-- [architecture.md](architecture.md) — 项目架构、核心接口、Provider 实现指南
-- [api/cache-and-ratelimit.md](api/cache-and-ratelimit.md) — **待实现**：Cache 数据透传 & Rate Limit 增强方案
+| 文件 | 内容 |
+|------|------|
+| `architecture.md` | 项目架构、核心接口、Provider 实现指南 |
+| `quickstart.md` | 快速上手示例 |
+| `providers.md` | Provider 实现清单与接入指南 |
+| `fallback.md` | Router 多 Provider 负载分发与容灾 |
+| `api/README.md` | API 文档概述 |
+| `api/completion.md` | Completion 请求参数与响应 |
+| `api/streaming.md` | 流式响应 |
+| `api/errors.md` | 错误处理 |
+| `api/cache-and-ratelimit.md` | Cache 数据透传 & Rate Limit 机制 |

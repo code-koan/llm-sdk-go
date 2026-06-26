@@ -1,10 +1,11 @@
 ---
 name: deep-coding
 description: >
-  这是 llm-sdk-go 的深度编码规范，任何涉及 Provider、统一接口、错误标准化、流式响应、配置、测试或文档的开发都必须先按此流程规划和验收。
+  这是 llm-sdk-go 的深度编码规范，任何涉及统一接口、错误标准化、流式响应、配置、测试或文档的开发都必须先按此流程规划和验收。
+  Provider 开发请走 /provider-adpter。
   触发时机：
-  1. 需求实现前——判断是否涉及 SDK 公共接口、Provider 行为、OpenAI 兼容格式、流式响应或错误归一化
-  2. 需求实现后——更新测试与 docs，确保根包 re-export、Provider 文档和示例保持同步
+  1. 需求实现前——判断是否涉及 SDK 公共接口、OpenAI 兼容格式、流式响应或错误归一化
+  2. 需求实现后——更新测试与 docs，确保根包 re-export 和文档保持同步
   3. 手动触发——/deep-coding
 ---
 
@@ -53,56 +54,18 @@ llm-sdk-go 的核心目标只有三个：
 - 调研参考实现，优先对齐 `providers/anthropic/` 和 `providers/openai/` 的现有模式。
 - 输出简洁开发计划；若是多文件或公共 API 变更，必须等用户明确确认后再写代码。
 
-### Step 2：Provider 设计关卡
+### Step 2：Provider 设计关卡 → 走 `/provider-adpter`
 
-新增或大改 Provider 前，先明确：
-
-```
-□ 厂商 API 类型：原生 SDK / OpenAI-compatible / HTTP wrapper
-□ 必填配置：API key、base URL、默认 model、timeout 等
-□ 支持能力：completion / streaming / embedding / model listing
-□ 错误映射：认证、限流、上下文长度、内容过滤、模型不存在、无效请求
-□ 响应归一：ID、Object、Created、Model、Choices、Usage 是否可稳定填充
-□ 流式语义：chunk 顺序、finish reason、usage 是否可获得
-```
-
-### Step 3：实现顺序
-
-推荐按依赖从底到上推进：
-
-```
-1. provider package constants/types/options
-2. constructor + config validation
-3. request/response conversion helpers
-4. Completion
-5. CompletionStream
-6. optional interfaces: Capabilities / Embedding / ListModels / ConvertError
-7. tests + docs + root re-export（如需要）
-```
-
-不要先写大而全的单文件。文件接近 800 行或职责混杂时，拆出 conversion、stream、errors 或 options 文件。
+### Step 3：实现顺序 → Provider 相关走 `/provider-adpter`，通用代码按依赖从底到上推进
 
 ### Step 4：Issue/PR 留痕
 
 - 开发计划确认后，如有关联 issue，使用 `gh issue comment <issue> --body "..."` 留下计划摘要。
 - PR body 必须关联 issue，说明公共 API 影响、Provider 兼容策略、测试覆盖和无法本地验证的外部依赖。
 
-## Provider 实现检查表
+## Provider 实现
 
-```
-□ package 名与目录名一致，导出 API 简洁
-□ interface assertions 完整：Provider / optional interfaces
-□ New(...) 返回可用 Provider，默认值和必填校验明确
-□ Completion 在请求前校验 Model 和 Messages
-□ CompletionStream 使用 goroutine 时能响应 ctx.Done()
-□ channel send 使用 select，消费方退出不会阻塞
-□ Usage、FinishReason、Tool/JSON response format 等字段尽量标准化
-□ ConvertError 覆盖 SDK typed errors，映射到 errors 包 sentinel errors
-□ 日志只记录必要调试信息，不泄露 API key / token / secret
-□ 所有 magic strings 已抽常量
-□ 不把 provider SDK 类型泄露到公共统一接口
-□ 文档说明环境变量、base URL、能力边界和示例用法
-```
+→ 见 `/provider-adpter` Phase 3 检查表
 
 ## 测试规范
 
@@ -116,28 +79,19 @@ llm-sdk-go 的核心目标只有三个：
 - 避免重复断言：`require.NotEmpty` 后不要再检查 `len > 0`。
 - 故意丢弃返回值时写注释或使用合适的 nolint。
 
-### Provider 测试覆盖最小集
+### Provider 测试
 
-```
-□ New 默认配置和 option 覆盖
-□ 缺少 API key / model / messages 的校验错误
-□ Completion 成功路径：请求转换 + 响应转换 + usage
-□ Completion 错误路径：typed error → normalized sentinel error
-□ CompletionStream 成功路径：多个 chunk + finish reason + close channel
-□ CompletionStream ctx cancel：不泄露 goroutine，不阻塞
-□ Capabilities / Embedding / ListModels（如实现）
-□ OpenAI-compatible wrapper 显式覆盖 CompatibleConfig 所有字段
-```
+→ 见 `/provider-adpter` Phase 4
 
 ## 文档闭环
 
 实现完成后检查：
 
 ```
-□ docs/providers.md         → 新 Provider / 能力矩阵 / 环境变量已更新
 □ README 或示例             → 公共用法变更已同步（如有）
 □ llmsdk.go                 → 需要根包 re-export 时已同步
 □ CHANGELOG.md              → 用户可见行为变更已记录（如项目当前维护该条目）
+□ docs/providers.md         → Provider 列表和能力矩阵 → 走 `/provider-adpter` Phase 5
 ```
 
 如果新增反复出现的开发约束，优先沉淀到 `CLAUDE.md` 或本 skill，避免只停留在对话中。

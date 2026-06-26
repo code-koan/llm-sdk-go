@@ -30,3 +30,4 @@ description: LLM Provider 实现层 — 各厂商的 Provider 接口实现
 ## 设计文档
 
 → [架构](../docs/architecture.md)
+→ [Provider 文档](../docs/providers.md)
