@@ -92,14 +92,19 @@ func (p *Provider) CompletionStream(
 // capabilities returns the capabilities for the DeepSeek provider.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{
+		AsyncGeneration:     false,
 		Completion:          true,
+		CompletionAudio:     false,
 		CompletionImage:     false, // DeepSeek doesn't support images.
 		CompletionPDF:       false,
 		CompletionReasoning: true, // DeepSeek R1 supports reasoning.
 		CompletionStreaming: true,
 		CompletionTools:     true,
+		CompletionVideo:     false,
 		Embedding:           false, // DeepSeek doesn't host embedding models.
 		ListModels:          true,
+		STT:                 false,
+		TTS:                 false,
 	}
 }
 

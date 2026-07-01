@@ -117,13 +117,17 @@ type CacheCreation struct {
 type Capabilities struct {
 	AsyncGeneration     bool // Async generation (video, image, audio, music)
 	Completion          bool
+	CompletionAudio     bool // Audio input modality (e.g., GPT-4o-audio)
 	CompletionImage     bool
 	CompletionPDF       bool
 	CompletionReasoning bool
 	CompletionStreaming bool
 	CompletionTools     bool
+	CompletionVideo     bool // Video input modality (e.g., Gemini video understanding)
 	Embedding           bool
 	ListModels          bool
+	STT                 bool // Speech-to-Text API (e.g., Whisper)
+	TTS                 bool // Text-to-Speech API
 }
 
 // ChatCompletion represents a chat completion response in OpenAI format.

@@ -53,13 +53,18 @@ func New(opts ...config.Option) (*Provider, error) {
 // capabilities returns the capabilities for the Llamafile provider.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{
+		AsyncGeneration:     false,
 		Completion:          true,
+		CompletionAudio:     false,
 		CompletionImage:     true, // Depends on the model loaded.
 		CompletionPDF:       false,
 		CompletionReasoning: false, // Llamafile doesn't support reasoning natively.
 		CompletionStreaming: true,
 		CompletionTools:     true,
+		CompletionVideo:     false,
 		Embedding:           true,
 		ListModels:          true,
+		STT:                 false,
+		TTS:                 false,
 	}
 }

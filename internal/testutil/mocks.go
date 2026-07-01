@@ -120,11 +120,19 @@ func NewMockProvider() *MockProvider {
 		},
 		CapabilitiesFunc: func() providers.Capabilities {
 			return providers.Capabilities{
+				AsyncGeneration:     false,
 				Completion:          true,
+				CompletionAudio:     false,
+				CompletionImage:     true,
+				CompletionPDF:       true,
+				CompletionReasoning: true,
 				CompletionStreaming: true,
 				CompletionTools:     true,
+				CompletionVideo:     false,
 				Embedding:           true,
 				ListModels:          true,
+				STT:                 false,
+				TTS:                 false,
 			}
 		},
 	}

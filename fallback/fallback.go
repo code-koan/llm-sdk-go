@@ -127,14 +127,19 @@ func (r *Router) Capabilities() providers.Capabilities {
 	}
 
 	caps := providers.Capabilities{
+		AsyncGeneration:     true,
 		Completion:          true,
+		CompletionAudio:     true,
 		CompletionImage:     true,
 		CompletionPDF:       true,
 		CompletionReasoning: true,
 		CompletionStreaming: true,
 		CompletionTools:     true,
+		CompletionVideo:     true,
 		Embedding:           true,
 		ListModels:          true,
+		STT:                 true,
+		TTS:                 true,
 	}
 
 	for _, p := range r.providers {
@@ -143,14 +148,19 @@ func (r *Router) Capabilities() providers.Capabilities {
 			continue
 		}
 		c := cp.Capabilities()
+		caps.AsyncGeneration = caps.AsyncGeneration && c.AsyncGeneration
 		caps.Completion = caps.Completion && c.Completion
+		caps.CompletionAudio = caps.CompletionAudio && c.CompletionAudio
 		caps.CompletionImage = caps.CompletionImage && c.CompletionImage
 		caps.CompletionPDF = caps.CompletionPDF && c.CompletionPDF
 		caps.CompletionReasoning = caps.CompletionReasoning && c.CompletionReasoning
 		caps.CompletionStreaming = caps.CompletionStreaming && c.CompletionStreaming
 		caps.CompletionTools = caps.CompletionTools && c.CompletionTools
+		caps.CompletionVideo = caps.CompletionVideo && c.CompletionVideo
 		caps.Embedding = caps.Embedding && c.Embedding
 		caps.ListModels = caps.ListModels && c.ListModels
+		caps.STT = caps.STT && c.STT
+		caps.TTS = caps.TTS && c.TTS
 	}
 
 	return caps

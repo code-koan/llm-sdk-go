@@ -122,6 +122,13 @@ func TestRouter_Capabilities(t *testing.T) {
 	require.False(t, caps.CompletionTools, "AND of true && false = false")
 	require.False(t, caps.Embedding, "AND of true && false = false")
 	require.True(t, caps.ListModels)
+
+	// New capability fields — AND logic: seed=true, a=true, b=false → false
+	require.False(t, caps.AsyncGeneration, "AND of true && false = false")
+	require.False(t, caps.CompletionAudio, "AND of true && false = false")
+	require.False(t, caps.CompletionVideo, "AND of true && false = false")
+	require.False(t, caps.STT, "AND of true && false = false")
+	require.False(t, caps.TTS, "AND of true && false = false")
 }
 
 func TestRouter_Completion_FirstSucceeds(t *testing.T) {
