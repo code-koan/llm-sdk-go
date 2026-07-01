@@ -98,6 +98,20 @@ type streamState struct {
 
 // New creates a new Anthropic provider.
 func New(opts ...config.Option) (*Provider, error) {
+	return newProvider(opts...)
+}
+
+// NewChatModel creates a ChatModel configured with the given capabilities.
+func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+	p, err := newProvider()
+	if err != nil {
+		return nil, err
+	}
+	return providers.NewChatModel(p, modelID, modelOpts...)
+}
+
+// newProvider creates a new Anthropic provider (shared by New and NewChatModel).
+func newProvider(opts ...config.Option) (*Provider, error) {
 	cfg, err := config.New(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("invalid options: %w", err)

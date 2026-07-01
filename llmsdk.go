@@ -21,6 +21,7 @@ import (
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
 	"github.com/code-koan/llm-sdk-go/fallback"
+	"github.com/code-koan/llm-sdk-go/param"
 	"github.com/code-koan/llm-sdk-go/providers"
 )
 
@@ -60,12 +61,24 @@ const (
 	ReasoningEffortNone   = providers.ReasoningEffortNone
 )
 
+// Content types for ContentPart.
+const (
+	ContentTypeImageURL   = providers.ContentTypeImageURL
+	ContentTypeInputAudio = providers.ContentTypeInputAudio
+	ContentTypeText       = providers.ContentTypeText
+	ContentTypeVideoURL   = providers.ContentTypeVideoURL
+)
+
 // Provider types.
 type (
 	Capabilities       = providers.Capabilities
 	CapabilityProvider = providers.CapabilityProvider
+	ChatBuilder        = providers.ChatBuilder
+	ChatModel          = providers.ChatModel
 	EmbeddingProvider  = providers.EmbeddingProvider
+	ModelCapabilities  = providers.ModelCapabilities
 	ModelLister        = providers.ModelLister
+	ModelOption        = providers.ModelOption
 	Provider           = providers.Provider
 )
 
@@ -89,8 +102,10 @@ type (
 type (
 	ContentPart = providers.ContentPart
 	ImageURL    = providers.ImageURL
+	InputAudio  = providers.InputAudio
 	Message     = providers.Message
 	Reasoning   = providers.Reasoning
+	VideoURL    = providers.VideoURL
 )
 
 // Tool types.
@@ -120,6 +135,14 @@ type (
 	Usage           = providers.Usage
 )
 
+// Param types.
+type (
+	IntOpt    = param.Opt[int]
+	FloatOpt  = param.Opt[float64]
+	BoolOpt   = param.Opt[bool]
+	StringOpt = param.Opt[string]
+)
+
 // Config types.
 type (
 	Config = config.Config
@@ -138,6 +161,30 @@ var (
 	WithLogger     = config.WithLogger
 	WithTimeout    = config.WithTimeout
 	WithUserID     = config.WithUserID
+)
+
+// Model construction and configuration.
+var (
+	NewChatModel = providers.NewChatModel
+)
+
+// Model capability options.
+var (
+	WithModelAudio     = providers.WithModelAudio
+	WithModelImage     = providers.WithModelImage
+	WithModelPDF       = providers.WithModelPDF
+	WithModelReasoning = providers.WithModelReasoning
+	WithModelStreaming = providers.WithModelStreaming
+	WithModelTools     = providers.WithModelTools
+	WithModelVideo     = providers.WithModelVideo
+)
+
+// Param convenience constructors.
+var (
+	OptInt    = param.Int
+	OptFloat  = param.Float
+	OptBool   = param.Bool
+	OptString = param.String
 )
 
 // Sentinel errors for type checking with errors.Is().

@@ -35,12 +35,6 @@ const (
 	objectModel               = "model"
 )
 
-// Content part types.
-const (
-	contentTypeImageURL = "image_url"
-	contentTypeText     = "text"
-)
-
 // Response format types.
 const (
 	responseFormatJSONObject = "json_object"
@@ -157,6 +151,16 @@ func NewCompatible(compatCfg CompatibleConfig, opts ...config.Option) (*Compatib
 		client:           openai.NewClient(clientOpts...),
 		cfg:              cfg,
 	}, nil
+}
+
+// NewChatModelFromCompatible creates a ChatModel for OpenAI-compatible providers.
+// This is a convenience for thin-wrapper providers (DeepSeek, Groq, Mistral, etc.).
+func NewChatModelFromCompatible(cfg CompatibleConfig, modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+	p, err := NewCompatible(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return providers.NewChatModel(p, modelID, modelOpts...)
 }
 
 // Capabilities returns the provider's capabilities.
@@ -824,14 +828,25 @@ func convertUserMessage(msg providers.Message) openai.ChatCompletionMessageParam
 		parts := make([]openai.ChatCompletionContentPartUnionParam, 0, len(msg.ContentParts()))
 		for _, part := range msg.ContentParts() {
 			switch part.Type {
-			case contentTypeText:
+			case providers.ContentTypeText:
 				parts = append(parts, openai.TextContentPart(part.Text))
-			case contentTypeImageURL:
+			case providers.ContentTypeImageURL:
 				if part.ImageURL != nil {
 					parts = append(parts, openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
 						URL: part.ImageURL.URL,
 					}))
 				}
+			case providers.ContentTypeInputAudio:
+				if part.InputAudio != nil {
+					parts = append(parts, openai.InputAudioContentPart(openai.ChatCompletionContentPartInputAudioInputAudioParam{
+						Data:   part.InputAudio.Data,
+						Format: part.InputAudio.Format,
+					}))
+				}
+			case providers.ContentTypeVideoURL:
+				// OpenAI API does not natively support video input.
+				// This case is reserved for future use with OpenAI-compatible providers
+				// that may support video input.
 			}
 		}
 		return openai.UserMessage(parts)

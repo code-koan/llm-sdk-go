@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-07-01
+
+### Added
+
+- **ChatModel + ChatBuilder**: 三步一体模型级能力系统（#14）
+  - `ModelOption` 功能选项: `WithModelAudio/Image/Video/PDF/Reasoning/Streaming/Tools`
+  - `ChatModel`: 模型 ID + ModelCapabilities + Provider 引用 + Builder 工厂
+  - `ChatBuilder`: 链式构建 `CompletionParams`，能力门控
+- **param 包**: `Opt[T]` 泛型类型 — 三态可选值（omitted/null/included），对标 anthropic-sdk-go
+- **ContentPart 扩展**: `InputAudio` / `VideoURL` 类型 + 4 个共享内容类型常量
+- 所有 11 个 provider 新增 `NewChatModel()` 构造方法
+- `examples/chat-model/` — ChatBuilder 完整使用示例
+- `docs/model-capabilities.md` — ChatModel/ChatBuilder 使用文档
+
 ## [0.13.0] - 2026-07-01
 
 ### Added

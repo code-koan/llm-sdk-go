@@ -69,6 +69,20 @@ func New(opts ...config.Option) (*Provider, error) {
 	return &Provider{CompatibleProvider: base}, nil
 }
 
+// NewChatModel creates a ChatModel configured with the given capabilities.
+func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+	return openai.NewChatModelFromCompatible(openai.CompatibleConfig{
+		APIKeyEnvVar:                   envAPIKey,
+		BaseURLEnvVar:                  "",
+		Capabilities:                   capabilities(),
+		ChatCompletionRequestTransform: transformRequest,
+		DefaultAPIKey:                  "",
+		DefaultBaseURL:                 defaultBaseURL,
+		Name:                           providerName,
+		RequireAPIKey:                  true,
+	}, modelID, modelOpts...)
+}
+
 // Completion performs a chat completion request.
 // It overrides the base implementation to handle DeepSeek's JSON mode quirks.
 func (p *Provider) Completion(

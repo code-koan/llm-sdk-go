@@ -7,6 +7,9 @@ llm-sdk-go/
 ├── llmsdk.go           # 根包 — 重新导出类型，简化导入
 ├── config/config.go    # Functional Options 配置模式
 ├── errors/errors.go    # 标准化错误类型 + sentinel errors
+├── param/              # 泛型参数封装 — Opt[T] 三态可选值
+│   ├── param.go        # Opt[T] 泛型类型
+│   └── wrappers.go     # 便捷构造函数 (Int/Float/Bool/String)
 ├── fallback/           # Fallback Router — 多后端聚合、重试、选择策略
 │   ├── fallback.go     # Router (实现 Provider 接口)
 │   ├── selectors.go    # Selector 接口 + Random/RoundRobin 实现
@@ -27,6 +30,25 @@ llm-sdk-go/
 - `EmbeddingProvider` — 可选: `Embedding()`
 - `ModelLister` — 可选: `ListModels()`
 - `ErrorConverter` — 可选: `ConvertError()`
+- `AsyncTaskProvider` — 可选: `SubmitTask()`, `GetTask()`
+
+## Model 层 (providers/model.go)
+
+ChatModel 是 Provider 之上的模型级能力配置层，提供三步一体 API：
+
+```
+ChatModel (模型 ID + ModelCapabilities + Provider 引用)
+  ├── Capabilities() → 能力查询
+  └── NewChat() → ChatBuilder (链式构建)
+        ├── WithSystem/WithText/... → 消息构建
+        ├── WithAudio/WithImage/... → 能力门控
+        ├── Build() → CompletionParams
+        └── Exec()/ExecStream() → 直接执行
+```
+
+`param.Opt[T]` (inspired by anthropic-sdk-go) 统一了可选参数的三态表示（omitted/null/included）。
+
+详见 [model-capabilities.md](model-capabilities.md)。
 
 ## 导入模式
 

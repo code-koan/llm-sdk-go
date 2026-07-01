@@ -43,6 +43,16 @@ func New(opts ...config.Option) (*Provider, error) {
 	return &Provider{CompatibleProvider: base}, nil
 }
 
+// NewChatModel creates a ChatModel configured with the given capabilities.
+// This is the entry point for capability-driven chat completion.
+func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+	p, err := New()
+	if err != nil {
+		return nil, err
+	}
+	return providers.NewChatModel(p, modelID, modelOpts...)
+}
+
 // capabilities returns the capabilities for the OpenAI provider.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{
