@@ -6,18 +6,19 @@ llm-sdk-go supports multiple LLM providers through a unified interface. Each pro
 
 ## Provider Status
 
-| Provider                | ID          | Completion | Streaming | Tools | Reasoning | Embeddings | List Models |
-|-------------------------|:------------|:----------:|:---------:|:-----:|:---------:|:----------:|:-----------:|
-| [Anthropic](#anthropic) | `anthropic` |     ✅      |     ✅     |   ✅   |     ✅     |     ❌      |      ❌      |
-| [DeepSeek](#deepseek)   | `deepseek`  |     ✅      |     ✅     |   ✅   |     ✅     |     ❌      |      ✅      |
-| [Gemini](#gemini)       | `gemini`    |     ✅      |     ✅     |   ✅   |     ✅     |     ✅      |      ✅      |
-| [Groq](#groq)           | `groq`      |     ✅      |     ✅     |   ✅   |     ❌     |     ❌      |      ✅      |
-| [llama.cpp](#llamacpp)   | `llamacpp`  |     ✅      |     ✅     |   ✅   |     ❌     |     ✅      |      ✅      |
-| [Llamafile](#llamafile) | `llamafile` |     ✅      |     ✅     |   ✅   |     ❌     |     ✅      |      ✅      |
-| [Mistral](#mistral)     | `mistral`   |     ✅      |     ✅     |   ✅   |     ✅     |     ✅      |      ✅      |
-| [Ollama](#ollama)       | `ollama`    |     ✅      |     ✅     |   ✅   |     ✅     |     ✅      |      ✅      |
-| [OpenAI](#openai)       | `openai`    |     ✅      |     ✅     |   ✅   |     ✅     |     ✅      |      ✅      |
-| [z.ai](#zai)            | `zai`       |     ✅      |     ✅     |   ✅   |     ✅     |     ❌      |      ✅      |
+| Provider                  | ID          | Completion | Streaming | Tools | Reasoning | Image | Audio | Video | Async Gen | Embeddings | List Models |
+|---------------------------|:------------|:----------:|:---------:|:-----:|:---------:|:-----:|:-----:|:-----:|:---------:|:----------:|:-----------:|
+| [Anthropic](#anthropic)   | `anthropic` |     ✅      |     ✅     |   ✅   |     ✅     |   ✅   |   ❌   |   ❌   |     ❌     |     ❌      |      ❌      |
+| [DeepSeek](#deepseek)     | `deepseek`  |     ✅      |     ✅     |   ✅   |     ✅     |   ❌   |   ❌   |   ❌   |     ❌     |     ❌      |      ✅      |
+| [Gemini](#gemini)         | `gemini`    |     ✅      |     ✅     |   ✅   |     ✅     |   ✅   |   ❌   |   ❌   |     ❌     |     ✅      |      ✅      |
+| [Groq](#groq)             | `groq`      |     ✅      |     ✅     |   ✅   |     ❌     |   ❌   |   ❌   |   ❌   |     ❌     |     ❌      |      ✅      |
+| [llama.cpp](#llamacpp)     | `llamacpp`  |     ✅      |     ✅     |   ✅   |     ❌     |   ❌   |   ❌   |   ❌   |     ❌     |     ✅      |      ✅      |
+| [Llamafile](#llamafile)   | `llamafile` |     ✅      |     ✅     |   ✅   |     ❌     |   ✅   |   ❌   |   ❌   |     ❌     |     ✅      |      ✅      |
+| [Mistral](#mistral)       | `mistral`   |     ✅      |     ✅     |   ✅   |     ✅     |   ✅   |   ❌   |   ❌   |     ❌     |     ✅      |      ✅      |
+| [Ollama](#ollama)         | `ollama`    |     ✅      |     ✅     |   ✅   |     ✅     |   ✅   |   ❌   |   ❌   |     ❌     |     ✅      |      ✅      |
+| [OpenAI](#openai)         | `openai`    |     ✅      |     ✅     |   ✅   |     ✅     |   ✅   |   ❌   |   ❌   |     ❌     |     ✅      |      ✅      |
+| [Seedance](#seedance)     | `seedance`  |     ❌      |     ❌     |   ❌   |     ❌     |   ❌   |   ❌   |   ❌   |     ✅     |     ❌      |      ❌      |
+| [z.ai](#zai)              | `zai`       |     ✅      |     ✅     |   ✅   |     ✅     |   ❌   |   ❌   |   ❌   |     ❌     |     ❌      |      ✅      |
 
 ### Legend
 
@@ -25,6 +26,10 @@ llm-sdk-go supports multiple LLM providers through a unified interface. Each pro
 - **Streaming** - Real-time streaming responses
 - **Tools** - Function calling / tool use
 - **Reasoning** - Extended thinking (e.g., Claude's thinking, OpenAI o1 reasoning)
+- **Image** - Image input (vision) support
+- **Audio** - Audio input modality (e.g., GPT-4o-audio)
+- **Video** - Video input modality (e.g., Gemini video understanding)
+- **Async Gen** - Asynchronous generation (video/image/audio/music via SubmitTask/GetTask)
 - **Embeddings** - Text embedding generation
 - **List Models** - API to list available models
 
@@ -556,3 +561,33 @@ Provider-specific errors are normalized to common error types:
 | `ErrModelNotFound` | Requested model doesn't exist |
 
 See [Error Handling](api/errors.md) for more details.
+
+### Seedance
+
+```go
+import (
+    llmsdk "github.com/code-koan/llm-sdk-go"
+    "github.com/code-koan/llm-sdk-go/providers/volcengine/seedance"
+)
+
+// Using environment variables (SEEDANCE_API_KEY).
+provider, err := seedance.New(llmsdk.WithAPIKey("sk-..."))
+```
+
+**Environment Variable:** `SEEDANCE_API_KEY`
+
+**Video Generation (Async):**
+
+Seedance supports text-to-video and image-to-video generation via the `AsyncTaskProvider` interface:
+
+```go
+task, err := provider.SubmitTask(ctx, llmsdk.AsyncTaskParams{
+    Model: "doubao-seedance-1.0",
+    Content: "A panda riding a bicycle through a bamboo forest",
+})
+// Poll for result
+task, err = provider.GetTask(ctx, task.ID)
+if task.Status == llmsdk.AsyncTaskSucceeded {
+    fmt.Println("Video URL:", task.ResultURL)
+}
+```

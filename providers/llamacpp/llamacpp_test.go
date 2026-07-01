@@ -58,6 +58,15 @@ func TestCapabilities(t *testing.T) {
 	require.True(t, caps.CompletionTools)
 	require.True(t, caps.Embedding)
 	require.True(t, caps.ListModels)
+
+	require.False(t, caps.AsyncGeneration)
+	require.False(t, caps.CompletionAudio)
+	require.False(t, caps.CompletionImage)
+	require.False(t, caps.CompletionPDF)
+	require.False(t, caps.CompletionReasoning)
+	require.False(t, caps.CompletionVideo)
+	require.False(t, caps.STT)
+	require.False(t, caps.TTS)
 }
 
 // TestIntegration runs real calls against a live llama.cpp server.

@@ -59,10 +59,18 @@ func New(opts ...config.Option) (*Provider, error) {
 // server actually implements reliably through its /v1 endpoint.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{
+		AsyncGeneration:     false,
 		Completion:          true,
+		CompletionAudio:     false,
+		CompletionImage:     false,
+		CompletionPDF:       false,
+		CompletionReasoning: false,
 		CompletionStreaming: true,
 		CompletionTools:     true,
+		CompletionVideo:     false,
 		Embedding:           true,
 		ListModels:          true,
+		STT:                 false,
+		TTS:                 false,
 	}
 }

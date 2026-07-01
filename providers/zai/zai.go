@@ -77,14 +77,19 @@ func New(opts ...config.Option) (*Provider, error) {
 // Capabilities returns the provider's capabilities.
 func (p *Provider) Capabilities() providers.Capabilities {
 	return providers.Capabilities{
+		AsyncGeneration:     false,
 		Completion:          true,
+		CompletionAudio:     false,
 		CompletionImage:     false,
 		CompletionPDF:       false,
 		CompletionReasoning: true,
 		CompletionStreaming: true,
 		CompletionTools:     true,
+		CompletionVideo:     false,
 		Embedding:           false,
 		ListModels:          true,
+		STT:                 false,
+		TTS:                 false,
 	}
 }
 

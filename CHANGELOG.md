@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-07-01
+
+### Added
+
+- `Capabilities` struct: 新增 `CompletionAudio`、`CompletionVideo`、`TTS`、`STT` 字段，声明音视频能力
+- 所有 11 个 provider 补齐完整能力声明（A-Z 排序，含 `AsyncGeneration`）
+- `AsyncTaskProvider` 接口 + `AsyncTaskParams` / `AsyncTask` / `AsyncTaskStatus` 类型体系
+- Seedance provider（`providers/volcengine/seedance`）：视频异步生成
+- `examples/capabilities/main.go` — 能力查询示例
+- `docs/providers.md` — Provider 矩阵新增 Image / Audio / Video / Async Gen 列 + Seedance 详情
+
+### Changed
+
+- `Capabilities` struct 字段重排为 A-Z 顺序
+- `fallback.Router.Capabilities()` AND 聚合逻辑覆盖全部字段
+
+## [0.12.0] - 2026-06-16
+
+### Added
+
+- Cache usage 与 rate-limit observability 文档
+
 ## [0.11.0] - 2026-06-10
 
 ### Added

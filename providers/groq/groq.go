@@ -57,13 +57,18 @@ func New(opts ...config.Option) (*Provider, error) {
 // capabilities returns the capabilities for the Groq provider.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{
+		AsyncGeneration:     false,
 		Completion:          true,
+		CompletionAudio:     false,
 		CompletionImage:     false, // Groq doesn't support image inputs.
 		CompletionPDF:       false,
 		CompletionReasoning: false, // Groq doesn't support reasoning parameters.
 		CompletionStreaming: true,
 		CompletionTools:     true,
+		CompletionVideo:     false,
 		Embedding:           false, // Groq doesn't host embedding models.
 		ListModels:          true,
+		STT:                 false,
+		TTS:                 false,
 	}
 }

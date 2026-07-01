@@ -90,14 +90,19 @@ func (p *Provider) CompletionStream(
 // capabilities returns the capabilities for the Mistral provider.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{
+		AsyncGeneration:     false,
 		Completion:          true,
+		CompletionAudio:     false,
 		CompletionImage:     true, // Pixtral models support vision.
 		CompletionPDF:       false,
 		CompletionReasoning: true, // Magistral models support reasoning.
 		CompletionStreaming: true,
 		CompletionTools:     true,
+		CompletionVideo:     false,
 		Embedding:           true, // mistral-embed model.
 		ListModels:          true,
+		STT:                 false,
+		TTS:                 false,
 	}
 }
 

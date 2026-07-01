@@ -87,7 +87,19 @@ func (p *Provider) CompletionStream(
 // Capabilities returns the capabilities of the provider.
 func (p *Provider) Capabilities() providers.Capabilities {
 	return providers.Capabilities{
-		AsyncGeneration: true,
+		AsyncGeneration:     true,
+		Completion:          false,
+		CompletionAudio:     false,
+		CompletionImage:     false,
+		CompletionPDF:       false,
+		CompletionReasoning: false,
+		CompletionStreaming: false,
+		CompletionTools:     false,
+		CompletionVideo:     false,
+		Embedding:           false,
+		ListModels:          false,
+		STT:                 false,
+		TTS:                 false,
 	}
 }
 
