@@ -42,6 +42,14 @@ const (
 	RoleUser      = "user"
 )
 
+// Content types for ContentPart.Type.
+const (
+	ContentTypeImageURL   = "image_url"
+	ContentTypeInputAudio = "input_audio"
+	ContentTypeText       = "text"
+	ContentTypeVideoURL   = "video_url"
+)
+
 // CapabilityProvider is an optional interface for providers to report capabilities.
 type CapabilityProvider interface {
 	Provider
@@ -201,8 +209,10 @@ type CompletionParams struct {
 type ContentPart struct {
 	CacheControl *CacheControlParam `json:"cache_control,omitempty"`
 	ImageURL     *ImageURL          `json:"image_url,omitempty"`
+	InputAudio   *InputAudio        `json:"input_audio,omitempty"`
 	Text         string             `json:"text,omitempty"`
 	Type         string             `json:"type"`
+	VideoURL     *VideoURL          `json:"video_url,omitempty"`
 }
 
 // EmbeddingData represents a single embedding.
@@ -253,6 +263,18 @@ type ImageURL struct {
 	URL    string `json:"url"`
 	Detail string `json:"detail,omitempty"`
 	Role   string `json:"role,omitempty"` // "first_frame" | "last_frame" | "reference"
+}
+
+// InputAudio represents audio input data in a content part.
+type InputAudio struct {
+	Data   string `json:"data"`   // base64-encoded audio data, or data URL
+	Format string `json:"format"` // audio format: "wav", "mp3", "pcm", etc.
+}
+
+// VideoURL represents a video URL in a content part (e.g., for Gemini video understanding).
+type VideoURL struct {
+	URL    string `json:"url"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // JSONSchema for structured output.

@@ -55,6 +55,19 @@ func New(opts ...config.Option) (*Provider, error) {
 	return &Provider{CompatibleProvider: base}, nil
 }
 
+// NewChatModel creates a ChatModel configured with the given capabilities.
+func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+	return openai.NewChatModelFromCompatible(openai.CompatibleConfig{
+		APIKeyEnvVar:   "",
+		BaseURLEnvVar:  "",
+		Capabilities:   capabilities(),
+		DefaultAPIKey:  defaultAPIKey,
+		DefaultBaseURL: defaultBaseURL,
+		Name:           providerName,
+		RequireAPIKey:  false,
+	}, modelID, modelOpts...)
+}
+
 // capabilities returns the feature set that a typical recent llama.cpp
 // server actually implements reliably through its /v1 endpoint.
 func capabilities() providers.Capabilities {

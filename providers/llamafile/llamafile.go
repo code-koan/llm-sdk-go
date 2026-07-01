@@ -50,6 +50,19 @@ func New(opts ...config.Option) (*Provider, error) {
 	return &Provider{CompatibleProvider: base}, nil
 }
 
+// NewChatModel creates a ChatModel configured with the given capabilities.
+func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+	return openai.NewChatModelFromCompatible(openai.CompatibleConfig{
+		APIKeyEnvVar:   "", // Llamafile doesn't use an API key env var.
+		BaseURLEnvVar:  envBaseURL,
+		Capabilities:   capabilities(),
+		DefaultAPIKey:  defaultAPIKey,
+		DefaultBaseURL: defaultBaseURL,
+		Name:           providerName,
+		RequireAPIKey:  false,
+	}, modelID, modelOpts...)
+}
+
 // capabilities returns the capabilities for the Llamafile provider.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{

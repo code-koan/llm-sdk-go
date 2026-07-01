@@ -54,6 +54,19 @@ func New(opts ...config.Option) (*Provider, error) {
 	return &Provider{CompatibleProvider: base}, nil
 }
 
+// NewChatModel creates a ChatModel configured with the given capabilities.
+func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+	return openai.NewChatModelFromCompatible(openai.CompatibleConfig{
+		APIKeyEnvVar:   envAPIKey,
+		BaseURLEnvVar:  "",
+		Capabilities:   capabilities(),
+		DefaultAPIKey:  "",
+		DefaultBaseURL: defaultBaseURL,
+		Name:           providerName,
+		RequireAPIKey:  true,
+	}, modelID, modelOpts...)
+}
+
 // capabilities returns the capabilities for the Groq provider.
 func capabilities() providers.Capabilities {
 	return providers.Capabilities{

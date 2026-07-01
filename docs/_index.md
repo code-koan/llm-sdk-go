@@ -20,6 +20,7 @@
 
 | 文件 | 内容 |
 |------|------|
+| `model-capabilities.md` | ChatModel + ChatBuilder 三步一体用法：能力配置 → 查询 → 链式构建 |
 | `architecture.md` | 项目架构、核心接口、Provider 实现指南 |
 | `quickstart.md` | 快速上手示例 |
 | `providers.md` | Provider 实现清单与接入指南 |
