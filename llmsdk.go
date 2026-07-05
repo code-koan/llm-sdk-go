@@ -23,6 +23,7 @@ import (
 	"github.com/code-koan/llm-sdk-go/fallback"
 	"github.com/code-koan/llm-sdk-go/param"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/tokenizer"
 )
 
 // Message roles.
@@ -80,6 +81,20 @@ type (
 	ModelLister        = providers.ModelLister
 	ModelOption        = providers.ModelOption
 	Provider           = providers.Provider
+)
+
+// Encoding for token estimation.
+type Encoding = tokenizer.Encoding
+
+// Tokenizer encoding constants.
+const (
+	EncodingCl100kBase = tokenizer.Cl100kBase
+	EncodingClaude     = tokenizer.Claude
+	EncodingGemini     = tokenizer.Gemini
+	EncodingO200kBase  = tokenizer.O200kBase
+	EncodingP50kBase   = tokenizer.P50kBase
+	EncodingP50kEdit   = tokenizer.P50kEdit
+	EncodingR50kBase   = tokenizer.R50kBase
 )
 
 // Request/Response types.
@@ -233,4 +248,11 @@ var (
 	WithRouterSelector               = fallback.WithSelector
 	WithRouterRetryPolicy            = fallback.WithRetryPolicy
 	WithRouterMaxAttemptsPerProvider = fallback.WithMaxAttemptsPerProvider
+)
+
+// Token estimation functions.
+var (
+	CountTokens             = tokenizer.CountTokens
+	CountTokensWithEncoding = tokenizer.CountTokensWithEncoding
+	CountText               = tokenizer.CountText
 )

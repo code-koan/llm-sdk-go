@@ -18,7 +18,8 @@ llm-sdk-go/
 │   ├── types.go        # 核心接口与共享类型
 │   ├── anthropic/      # Anthropic Claude (参考实现)
 │   ├── openai/         # OpenAI provider
-│   └── ollama/         # Ollama 本地 provider
+│   ├── ollama/         # Ollama 本地 provider
+│   └── tokenizer/      # Token 估算 — tiktoken (OpenAI) + 启发式 (Claude/Gemini)
 ├── internal/testutil/  # 测试工具与 fixtures
 └── docs/               # 文档
 ```

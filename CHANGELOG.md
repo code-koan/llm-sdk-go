@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-07-05
+
+### Added
+
+- `tokenizer` package: local token estimation with dual strategy (tiktoken for OpenAI, character-based heuristic for Claude/Gemini)
+- `Encoding` type with 7 constants: O200kBase, Cl100kBase, P50kBase, P50kEdit, R50kBase, Claude, Gemini
+- `CountTokens(messages, model)` — auto-detect encoding from model name
+- `CountTokensWithEncoding(messages, encoding)` — explicit encoding for user-defined models
+- `CountText(text, model)` — convenience wrapper for raw text
+- Re-exports in root `llmsdk` package: Encoding type, 7 encoding constants, 3 Count* functions
+- Documentation: `docs/tokenizer.md`, updated `architecture.md`, `_index.md`
+
 ## [0.14.0] - 2026-07-01
 
 ### Added

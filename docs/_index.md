@@ -30,3 +30,4 @@
 | `api/streaming.md` | 流式响应 |
 | `api/errors.md` | 错误处理 |
 | `api/cache-and-ratelimit.md` | Cache 数据透传 & Rate Limit 机制 |
+| `tokenizer.md` | Token estimation API — tiktoken for OpenAI, heuristic for Claude/Gemini |

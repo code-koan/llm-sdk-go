@@ -1,12 +1,14 @@
 module github.com/code-koan/llm-sdk-go
 
-go 1.25
+go 1.26
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.26.0
 	github.com/ollama/ollama v0.17.6
 	github.com/openai/openai-go v1.12.0
 	github.com/stretchr/testify v1.11.1
+	github.com/tiktoken-go/tokenizer v0.8.0
+	github.com/volcengine/volcengine-go-sdk v1.2.37
 	google.golang.org/genai v1.49.0
 )
 
@@ -17,6 +19,7 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
@@ -34,7 +37,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.23 // indirect
-	github.com/volcengine/volcengine-go-sdk v1.2.37 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
