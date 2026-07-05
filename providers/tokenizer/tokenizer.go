@@ -61,7 +61,7 @@ func CountTokens(messages []providers.Message, model string) (int, error) {
 // CountTokensWithEncoding counts the tokens for the given messages using
 // the specified encoding strategy.
 func CountTokensWithEncoding(messages []providers.Message, enc Encoding) (int, error) {
-	text := extractText(messages)
+	cc := extractContent(messages)
 	overhead := messageOverhead(messages)
 
 	switch enc {
@@ -70,24 +70,24 @@ func CountTokensWithEncoding(messages []providers.Message, enc Encoding) (int, e
 		if err != nil {
 			return 0, err
 		}
-		count, err := codec.Count(text)
+		count, err := codec.Count(cc.text)
 		if err != nil {
 			return 0, err
 		}
-		return count + overhead, nil
+		return count + cc.media + overhead, nil
 	case Claude:
-		return estimateTokens(text, &claudeMultipliers) + overhead, nil
+		return estimateTokens(cc.text, &claudeMultipliers) + cc.media + overhead, nil
 	case Gemini:
-		return estimateTokens(text, &geminiMultipliers) + overhead, nil
+		return estimateTokens(cc.text, &geminiMultipliers) + cc.media + overhead, nil
 	default:
 		codec, err := getTiktokenEncoder(enc)
 		if err == nil {
-			count, err := codec.Count(text)
+			count, err := codec.Count(cc.text)
 			if err == nil {
-				return count + overhead, nil
+				return count + cc.media + overhead, nil
 			}
 		}
-		return estimateTokens(text, &openaiMultipliers) + overhead, nil
+		return estimateTokens(cc.text, &openaiMultipliers) + cc.media + overhead, nil
 	}
 }
 
@@ -122,33 +122,61 @@ func getTiktokenEncoder(enc Encoding) (tiktoken.Codec, error) {
 	return codec, nil
 }
 
-// extractText concatenates all text content from the messages into a single
-// string for token counting.
-func extractText(messages []providers.Message) string {
+// contentCount holds extracted text content and media token estimates.
+type contentCount struct {
+	text  string
+	media int
+}
+
+// extractContent extracts text content and counts media tokens from messages.
+func extractContent(messages []providers.Message) contentCount {
 	var b strings.Builder
+	media := 0
 	for _, msg := range messages {
 		if msg.Name != "" {
 			b.WriteString(msg.Name)
-			b.WriteString(" ")
+			b.WriteByte(' ')
 		}
 		if msg.IsMultiModal() {
-			parts := msg.ContentParts()
-			for _, p := range parts {
-				b.WriteString(p.Text)
+			for _, part := range msg.ContentParts() {
+				if part.ImageURL != nil {
+					media += imageTokens(part.ImageURL)
+				} else {
+					// text or unknown content part type
+					b.WriteString(part.Text)
+				}
 			}
 		} else {
 			b.WriteString(msg.ContentString())
 		}
 		for _, tc := range msg.ToolCalls {
 			b.WriteString(tc.Function.Name)
-			b.WriteString(" ")
+			b.WriteByte(' ')
 			b.WriteString(tc.Function.Arguments)
 		}
 		if msg.Reasoning != nil {
 			b.WriteString(msg.Reasoning.Content)
 		}
 	}
-	return b.String()
+	return contentCount{text: b.String(), media: media}
+}
+
+// imageTokens estimates token count for an image content part.
+// Uses OpenAI tile-based calculation for tiktoken encodings,
+// fixed conservative estimate for heuristic encodings (Claude, Gemini).
+func imageTokens(img *providers.ImageURL) int {
+	if img == nil {
+		return 0
+	}
+	detail := strings.ToLower(img.Detail)
+	if detail == "low" {
+		return imageLowDetailTokens
+	}
+	// "high", "auto", or empty — assume typical 1024x1024 image.
+	// After rescaling: 2048->1024, short side to 768 -> 768x768.
+	// 512px tiles = ceil(768/512)^2 = 4.
+	// 4 x 170 + 85 = 765.
+	return imageHighDetailTokens
 }
 
 // messageOverhead calculates the fixed token overhead for the message list.

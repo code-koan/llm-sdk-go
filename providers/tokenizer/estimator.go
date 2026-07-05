@@ -9,6 +9,16 @@ import (
 	"unicode"
 )
 
+// Media token estimates. Image values follow OpenAI's tile-based calculation.
+const (
+	imageLowDetailTokens  = 85   // low detail: fixed base tokens
+	imageHighDetailTokens = 765  // high/auto: 4 tiles x 170 + 85 (for typical 1024x1024)
+	imageNonOpenAITokens  = 520  // Claude, Gemini: fixed conservative estimate
+	audioInputTokens      = 256  // per audio input
+	videoInputTokens      = 8192 // per video input
+	fileInputTokens       = 4096 // per file attachment
+)
+
 // Character categories for token cost multipliers.
 const (
 	catWord       = 0

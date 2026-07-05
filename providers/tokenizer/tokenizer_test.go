@@ -299,6 +299,92 @@ func TestMessageOverhead(t *testing.T) {
 	})
 }
 
+func TestMultimodalTokens(t *testing.T) {
+	t.Parallel()
+
+	t.Run("image low detail", func(t *testing.T) {
+		t.Parallel()
+		content := []providers.ContentPart{
+			{Type: "text", Text: "Describe this image:"},
+			{Type: "image_url", ImageURL: &providers.ImageURL{URL: "https://example.com/img.png", Detail: "low"}},
+		}
+		msg := providers.Message{Role: providers.RoleUser, Content: content}
+		count, err := tokenizer.CountTokens([]providers.Message{msg}, "gpt-4o")
+		require.NoError(t, err)
+		// text tokens + 85 (low detail image) + overhead
+		require.Greater(t, count, 85)
+	})
+
+	t.Run("image high detail", func(t *testing.T) {
+		t.Parallel()
+		content := []providers.ContentPart{
+			{Type: "text", Text: "Analyze this:"},
+			{Type: "image_url", ImageURL: &providers.ImageURL{URL: "https://example.com/img.png", Detail: "high"}},
+		}
+		msg := providers.Message{Role: providers.RoleUser, Content: content}
+		count, err := tokenizer.CountTokens([]providers.Message{msg}, "gpt-4o")
+		require.NoError(t, err)
+		require.Greater(t, count, 765)
+	})
+
+	t.Run("image auto detail", func(t *testing.T) {
+		t.Parallel()
+		content := []providers.ContentPart{
+			{Type: "image_url", ImageURL: &providers.ImageURL{URL: "https://example.com/img.png", Detail: "auto"}},
+		}
+		msg := providers.Message{Role: providers.RoleUser, Content: content}
+		count, err := tokenizer.CountTokens([]providers.Message{msg}, "gpt-4o")
+		require.NoError(t, err)
+		require.Greater(t, count, 765)
+	})
+
+	t.Run("image with claude encoding", func(t *testing.T) {
+		t.Parallel()
+		content := []providers.ContentPart{
+			{Type: "text", Text: "What's in this photo?"},
+			{Type: "image_url", ImageURL: &providers.ImageURL{URL: "https://example.com/photo.jpg"}},
+		}
+		msg := providers.Message{Role: providers.RoleUser, Content: content}
+		count, err := tokenizer.CountTokensWithEncoding([]providers.Message{msg}, tokenizer.Claude)
+		require.NoError(t, err)
+		require.Greater(t, count, 765)
+	})
+
+	t.Run("multiple images", func(t *testing.T) {
+		t.Parallel()
+		content := []providers.ContentPart{
+			{Type: "text", Text: "Compare these two images:"},
+			{Type: "image_url", ImageURL: &providers.ImageURL{URL: "https://example.com/a.jpg", Detail: "high"}},
+			{Type: "image_url", ImageURL: &providers.ImageURL{URL: "https://example.com/b.jpg", Detail: "low"}},
+		}
+		msg := providers.Message{Role: providers.RoleUser, Content: content}
+		count, err := tokenizer.CountTokens([]providers.Message{msg}, "gpt-4o")
+		require.NoError(t, err)
+		// text + 765 (high) + 85 (low) + overhead
+		require.Greater(t, count, 850)
+	})
+
+	t.Run("text only with nil image", func(t *testing.T) {
+		t.Parallel()
+		content := []providers.ContentPart{
+			{Type: "text", Text: "Hello world"},
+		}
+		msg := providers.Message{Role: providers.RoleUser, Content: content}
+		count, err := tokenizer.CountTokens([]providers.Message{msg}, "gpt-4o")
+		require.NoError(t, err)
+		// same as plain text message
+		require.Greater(t, count, 0)
+	})
+
+	t.Run("no content parts", func(t *testing.T) {
+		t.Parallel()
+		msg := providers.Message{Role: providers.RoleUser, Content: []providers.ContentPart{}}
+		count, err := tokenizer.CountTokens([]providers.Message{msg}, "gpt-4o")
+		require.NoError(t, err)
+		require.Equal(t, 6, count) // overhead only
+	})
+}
+
 func TestCountText(t *testing.T) {
 	t.Parallel()
 

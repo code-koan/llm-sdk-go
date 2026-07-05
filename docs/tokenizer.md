@@ -48,3 +48,16 @@ count, err := llmsdk.CountText("Hello world", "gpt-4o")
 | EncodingP50kBase | tiktoken | davinci-002, davinci-003 |
 | EncodingP50kEdit | tiktoken | Edit models |
 | EncodingR50kBase | tiktoken | GPT-3 legacy |
+
+## Multimodal
+
+Images, audio, and video are counted with fixed token estimates:
+
+| Media | Detail | Tokens |
+|-------|--------|--------|
+| Image | low | 85 |
+| Image | high / auto | 765 (4 tiles x 170 + 85) |
+| Audio | — | 256 |
+| Video | — | 8192 |
+
+Image estimates assume typical 1024x1024 dimensions. For precise image token counts, use the provider API directly.
