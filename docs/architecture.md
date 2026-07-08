@@ -17,8 +17,11 @@ llm-sdk-go/
 ├── providers/
 │   ├── types.go        # 核心接口与共享类型
 │   ├── anthropic/      # Anthropic Claude (参考实现)
-│   ├── openai/         # OpenAI provider
+│   ├── openai/         # OpenAI + OpenAI-compatible 协议
+│   │   └── extra.go     #   ExtraFields 提取 helper
 │   ├── ollama/         # Ollama 本地 provider
+│   ├── zai/            # z.ai provider
+│   ├── gemini/         # Gemini provider
 │   └── tokenizer/      # Token 估算 — tiktoken (OpenAI) + 启发式 (Claude/Gemini)
 ├── internal/testutil/  # 测试工具与 fixtures
 └── docs/               # 文档
@@ -91,5 +94,43 @@ Provider 通过 `errors.As` 将厂商特定错误转换为 SDK 类型错误。
 
 1. `providers/{name}/{name}.go` 实现 `Provider` 接口
 2. 按需实现可选接口 (`ErrorConverter` 等)
-3. 添加测试（`t.Parallel()`）
-4. 参考 `providers/anthropic/` 作为标准示例
+3. 在 `providers/types.go` 对应字段注释中补充协议映射
+4. 添加测试（`t.Parallel()`）
+5. 参考 `providers/anthropic/` 作为标准示例
+
+## 协议映射表
+
+`providers/types.go` 是跨协议字段的唯一真相源。每个字段注释中包含「协议映射」段落，说明该字段在各 Provider 中的对应概念。
+
+以下为当前跨协议字段的完整矩阵：
+
+| Canonical 字段 | Anthropic | OpenAI / Compatible | zai | Gemini |
+|---|---|---|---|---|
+| `Message.Content` | `TextBlock.Text` | `content` | `content` | `Part.Text` |
+| `Message.Reasoning` | `ThinkingBlock` | `reasoning_content` (ExtraFields) | `reasoning_content` (平铺) | `Part.Thought.Text` (delta) |
+| `Message.ToolCalls` | `ToolUseBlock` | `tool_calls` | `tool_calls` | `Part.FunctionCall` |
+| `Message.ToolCallID` | `ToolResultBlock.ToolUseID` | `tool_call_id` | — | `Part.FunctionResponse` |
+| `Reasoning.Content` | `ThinkingBlock.Thinking` | `reasoning_content` | `reasoning_content` | `Part.Text` |
+| `Reasoning.Signature` | `ThinkingBlock.Signature` | — | — | — |
+| `Usage.ReasoningTokens` | 不单独报告 | `CompletionTokensDetails.ReasoningTokens` | `usage.reasoning_tokens` | `UsageMetadata.ThoughtsTokenCount` |
+| `ToolCall.Extra` | — | — | — | `ThoughtSignature` |
+| `ChunkDelta.Reasoning` | `ThinkingDelta` | `reasoning_content` (delta ExtraFields) | `reasoning_content` (delta) | `Part.Thought` |
+
+### Reasoning Round-Trip 兼容矩阵
+
+多轮对话中，同 Provider reasoning 可完整 round-trip；
+跨 Provider 受上游协议约束：
+
+| 上游 ↓ / 下游 → | Anthropic | OpenAI Compatible | zai |
+|---|---:|---:|---:|
+| **Anthropic** | ✅ Signature 存在 | ✅ 只传 Content | ✅ 只传 Content |
+| **OpenAI Compatible** | ❌ 缺 Signature，跳过 | ✅ | ✅ |
+| **zai** | ❌ 缺 Signature，跳过 | ✅ | ✅ |
+
+### 新增跨协议字段流程
+
+1. `providers/types.go` 对应 struct 加字段 + 协议映射注释
+2. 各 Provider 响应转换：原生格式 → 规范字段
+3. 各 Provider 请求转换：规范字段 → 原生格式
+4. `llmsdk.go` re-export（如有必要）
+5. 本文档更新映射表

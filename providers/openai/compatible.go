@@ -432,8 +432,13 @@ func convertAPIError(name string, apiErr *openai.Error, originalErr error) error
 
 // convertAssistantMessage converts an assistant message to OpenAI format.
 func convertAssistantMessage(msg providers.Message) openai.ChatCompletionMessageParamUnion {
+	content := openai.ChatCompletionAssistantMessageParamContentUnion{
+		OfString: openai.String(msg.ContentString()),
+	}
+
+	var toolCalls []openai.ChatCompletionMessageToolCallParam
 	if len(msg.ToolCalls) > 0 {
-		toolCalls := make([]openai.ChatCompletionMessageToolCallParam, 0, len(msg.ToolCalls))
+		toolCalls = make([]openai.ChatCompletionMessageToolCallParam, 0, len(msg.ToolCalls))
 		for _, tc := range msg.ToolCalls {
 			toolCalls = append(toolCalls, openai.ChatCompletionMessageToolCallParam{
 				ID: tc.ID,
@@ -443,16 +448,22 @@ func convertAssistantMessage(msg providers.Message) openai.ChatCompletionMessage
 				},
 			})
 		}
-		return openai.ChatCompletionMessageParamUnion{
-			OfAssistant: &openai.ChatCompletionAssistantMessageParam{
-				Content: openai.ChatCompletionAssistantMessageParamContentUnion{
-					OfString: openai.String(msg.ContentString()),
-				},
-				ToolCalls: toolCalls,
-			},
-		}
 	}
-	return openai.AssistantMessage(msg.ContentString())
+
+	assistant := &openai.ChatCompletionAssistantMessageParam{
+		Content:   content,
+		ToolCalls: toolCalls,
+	}
+
+	if msg.Reasoning != nil && msg.Reasoning.Content != "" {
+		assistant.SetExtraFields(map[string]any{
+			"reasoning_content": msg.Reasoning.Content,
+		})
+	}
+
+	return openai.ChatCompletionMessageParamUnion{
+		OfAssistant: assistant,
+	}
 }
 
 // convertChunk converts an OpenAI streaming chunk to provider format.
@@ -466,6 +477,11 @@ func convertChunk(chunk *openai.ChatCompletionChunk) providers.ChatCompletionChu
 				Content: choice.Delta.Content,
 			},
 			FinishReason: string(choice.FinishReason),
+		}
+
+		// reasoning_content 在流式 delta 的 ExtraFields 中。
+		if v := stringFromExtra(choice.Delta.JSON.ExtraFields, "reasoning_content"); v != "" {
+			chunkChoice.Delta.Reasoning = &providers.Reasoning{Content: v}
 		}
 
 		if len(choice.Delta.ToolCalls) > 0 {
@@ -767,6 +783,11 @@ func convertResponseMessage(msg openai.ChatCompletionMessage) providers.Message 
 	result := providers.Message{
 		Role:    string(msg.Role),
 		Content: msg.Content,
+	}
+
+	// reasoning_content 不在 OpenAI SDK v1.12.0 类型定义中, 通过 ExtraFields 提取。
+	if v := stringFromExtra(msg.JSON.ExtraFields, "reasoning_content"); v != "" {
+		result.Reasoning = &providers.Reasoning{Content: v}
 	}
 
 	if len(msg.ToolCalls) > 0 {

@@ -285,7 +285,15 @@ type JSONSchema struct {
 	Strict      *bool          `json:"strict,omitempty"`
 }
 
-// Message represents a chat message in OpenAI format.
+// Message 表示一条聊天消息，采用 OpenAI 兼容格式。
+// 所有 Provider 的响应统一转换为此结构，请求也从此结构还原为各协议原生格式。
+//
+// 协议映射（非 OpenAI 字段在其他协议中的对应概念）:
+//
+//	字段        Anthropic              Gemini          zai
+//	Reasoning   ThinkingBlock          Part.Thought    reasoning_content
+//	ToolCalls   ToolUseBlock           Part.FunctionCall  tool_calls
+//	ToolCallID  ToolResultBlock.ToolUseID  Part.FunctionResponse.tool_call_id  —
 type Message struct {
 	Role       string     `json:"role"`
 	Content    any        `json:"content"`
@@ -309,9 +317,34 @@ type ModelsResponse struct {
 	Data   []Model `json:"data"`
 }
 
-// Reasoning represents extended thinking/reasoning content.
+// Reasoning 表示模型在生成回复之前的思考/推理内容。
+// 多轮对话中必须原样回传，否则下游模型报错。
+//
+// 协议映射:
+//
+//	Anthropic          响应: ThinkingBlock.Thinking + Signature → Content + Signature
+//	                    请求: Content + Signature → ThinkingBlockParam (签名必填)
+//	OpenAI / Compatible 响应: reasoning_content → Content
+//	                    请求: Content → SetExtraFields{"reasoning_content"}
+//	zai                 响应: reasoning_content → Content
+//	                    请求: Content → reasoning_content (直通)
+//	Gemini              流式: Part.Thought.Text → Content (仅 delta)
 type Reasoning struct {
+	// Content 是思考/推理的文本内容。
+	//
+	// 协议来源:
+	//   Anthropic  ThinkingBlock.Thinking
+	//   OpenAI     reasoning_content (顶层字段, 不在 SDK 类型定义中)
+	//   zai        reasoning_content (平铺字段)
+	//   Gemini     Part.Text (type="thought", 仅流式 delta)
 	Content string `json:"content,omitempty"`
+
+	// Signature 是思考块的密码学签名，回传时用于验证内容完整性。
+	// 仅 Anthropic 需要；OpenAI / zai / Gemini 无此概念，请求回传时忽略。
+	//
+	// 协议来源:
+	//   Anthropic  ThinkingBlock.Signature (必填, 不回传则 400)
+	Signature string `json:"signature,omitempty"`
 }
 
 // ResponseFormat specifies the format of the response.
@@ -354,15 +387,22 @@ type ToolChoiceFunction struct {
 	Name string `json:"name"`
 }
 
-// Usage represents token usage information.
+// Usage 表示 token 消耗统计。
 type Usage struct {
 	CacheCreation            *CacheCreation `json:"cache_creation,omitempty"`
 	CacheCreationInputTokens int            `json:"cache_creation_input_tokens,omitempty"`
 	CacheReadInputTokens     int            `json:"cache_read_input_tokens,omitempty"`
 	CompletionTokens         int            `json:"completion_tokens"`
 	PromptTokens             int            `json:"prompt_tokens"`
-	ReasoningTokens          int            `json:"reasoning_tokens,omitempty"`
-	TotalTokens              int            `json:"total_tokens"`
+	// ReasoningTokens 是模型思考/推理消耗的 token 数。
+	//
+	// 协议来源:
+	//   OpenAI   CompletionTokensDetails.ReasoningTokens
+	//   Gemini   UsageMetadata.ThoughtsTokenCount
+	//   zai      usage.reasoning_tokens
+	//   Anthropic 不单独报告 thinking token 数量
+	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
+	TotalTokens     int `json:"total_tokens"`
 }
 
 // ContentParts extracts content parts from a message.

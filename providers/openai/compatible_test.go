@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/packages/respjson"
 	"github.com/stretchr/testify/require"
 
 	"github.com/code-koan/llm-sdk-go/config"
@@ -750,5 +751,172 @@ func TestStreamingContextCancellation(t *testing.T) {
 		<-errs
 
 		// Test passes if it doesn't hang.
+	})
+}
+
+func TestStringFromExtra(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing key returns empty", func(t *testing.T) {
+		t.Parallel()
+		require.Empty(t, stringFromExtra(nil, "reasoning_content"))
+	})
+
+	t.Run("empty map returns empty", func(t *testing.T) {
+		t.Parallel()
+		require.Empty(t, stringFromExtra(map[string]respjson.Field{}, "reasoning_content"))
+	})
+}
+
+func TestConvertResponseMessageReasoning(t *testing.T) {
+	t.Parallel()
+
+	t.Run("extracts reasoning_content from ExtraFields", func(t *testing.T) {
+		t.Parallel()
+
+		raw := `{"role":"assistant","content":"Hello","reasoning_content":"Let me think..."}`
+		var msg openai.ChatCompletionMessage
+		require.NoError(t, json.Unmarshal([]byte(raw), &msg))
+
+		result := convertResponseMessage(msg)
+		require.NotNil(t, result.Reasoning)
+		require.Equal(t, "Let me think...", result.Reasoning.Content)
+	})
+
+	t.Run("no reasoning_content returns nil Reasoning", func(t *testing.T) {
+		t.Parallel()
+
+		raw := `{"role":"assistant","content":"Hello"}`
+		var msg openai.ChatCompletionMessage
+		require.NoError(t, json.Unmarshal([]byte(raw), &msg))
+
+		result := convertResponseMessage(msg)
+		require.Nil(t, result.Reasoning)
+	})
+
+	t.Run("empty reasoning_content returns nil Reasoning", func(t *testing.T) {
+		t.Parallel()
+
+		raw := `{"role":"assistant","content":"","reasoning_content":""}`
+		var msg openai.ChatCompletionMessage
+		require.NoError(t, json.Unmarshal([]byte(raw), &msg))
+
+		result := convertResponseMessage(msg)
+		require.Nil(t, result.Reasoning)
+	})
+}
+
+func TestConvertAssistantMessageReasoning(t *testing.T) {
+	t.Parallel()
+
+	t.Run("injects reasoning_content when Reasoning present", func(t *testing.T) {
+		t.Parallel()
+
+		msg := providers.Message{
+			Role:    providers.RoleAssistant,
+			Content: "Hello",
+			Reasoning: &providers.Reasoning{
+				Content: "Let me think...",
+			},
+		}
+
+		result := convertAssistantMessage(msg)
+		require.NotNil(t, result.OfAssistant)
+
+		fields := result.OfAssistant.ExtraFields()
+		require.NotNil(t, fields)
+		require.Equal(t, "Let me think...", fields["reasoning_content"])
+	})
+
+	t.Run("no Reasoning retains content only", func(t *testing.T) {
+		t.Parallel()
+
+		msg := providers.Message{
+			Role:    providers.RoleAssistant,
+			Content: "Hello",
+		}
+
+		result := convertAssistantMessage(msg)
+		require.NotNil(t, result.OfAssistant)
+		require.Equal(t, "Hello", result.OfAssistant.Content.OfString.Value)
+		require.Empty(t, result.OfAssistant.ExtraFields())
+	})
+
+	t.Run("with ToolCalls injects reasoning_content", func(t *testing.T) {
+		t.Parallel()
+
+		msg := providers.Message{
+			Role:    providers.RoleAssistant,
+			Content: "Result",
+			ToolCalls: []providers.ToolCall{
+				{
+					ID:   "call_1",
+					Type: "function",
+					Function: providers.FunctionCall{
+						Name:      "get_weather",
+						Arguments: `{"city":"Tokyo"}`,
+					},
+				},
+			},
+			Reasoning: &providers.Reasoning{
+				Content: "Need to check weather...",
+			},
+		}
+
+		result := convertAssistantMessage(msg)
+		require.NotNil(t, result.OfAssistant)
+		require.Len(t, result.OfAssistant.ToolCalls, 1)
+
+		fields := result.OfAssistant.ExtraFields()
+		require.Equal(t, "Need to check weather...", fields["reasoning_content"])
+	})
+}
+
+func TestConvertChunkReasoning(t *testing.T) {
+	t.Parallel()
+
+	t.Run("extracts reasoning_content from delta ExtraFields", func(t *testing.T) {
+		t.Parallel()
+
+		raw := `{
+			"id":"chunk-1",
+			"object":"chat.completion.chunk",
+			"created":1700000000,
+			"model":"test-model",
+			"choices":[{
+				"index":0,
+				"delta":{"role":"assistant","content":"Hello","reasoning_content":"Let me think..."},
+				"finish_reason":null
+			}]
+		}`
+		var chunk openai.ChatCompletionChunk
+		require.NoError(t, json.Unmarshal([]byte(raw), &chunk))
+
+		result := convertChunk(&chunk)
+		require.Len(t, result.Choices, 1)
+		require.NotNil(t, result.Choices[0].Delta.Reasoning)
+		require.Equal(t, "Let me think...", result.Choices[0].Delta.Reasoning.Content)
+	})
+
+	t.Run("no reasoning_content returns nil delta Reasoning", func(t *testing.T) {
+		t.Parallel()
+
+		raw := `{
+			"id":"chunk-1",
+			"object":"chat.completion.chunk",
+			"created":1700000000,
+			"model":"test-model",
+			"choices":[{
+				"index":0,
+				"delta":{"role":"assistant","content":"Hello"},
+				"finish_reason":null
+			}]
+		}`
+		var chunk openai.ChatCompletionChunk
+		require.NoError(t, json.Unmarshal([]byte(raw), &chunk))
+
+		result := convertChunk(&chunk)
+		require.Len(t, result.Choices, 1)
+		require.Nil(t, result.Choices[0].Delta.Reasoning)
 	})
 }

@@ -1599,3 +1599,128 @@ func newTestAPIError(t *testing.T, statusCode int) *anthropic.Error {
 		Response:   &http.Response{StatusCode: statusCode},
 	}
 }
+
+func TestConvertResponseReasoningSignature(t *testing.T) {
+	t.Parallel()
+
+	t.Run("preserves Signature from ThinkingBlock", func(t *testing.T) {
+		t.Parallel()
+
+		raw := `{
+			"id":"msg_123",
+			"model":"claude-sonnet-4-20250514",
+			"type":"message",
+			"role":"assistant",
+			"content":[
+				{"type":"thinking","signature":"sig_abc","thinking":"Let me think..."},
+				{"type":"text","text":"Hello"}
+			],
+			"stop_reason":"end_turn",
+			"usage":{"input_tokens":10,"output_tokens":20}
+		}`
+		var msg anthropic.Message
+		require.NoError(t, json.Unmarshal([]byte(raw), &msg))
+
+		result := convertResponse(&msg)
+		require.NotNil(t, result.Choices[0].Message.Reasoning)
+		require.Equal(t, "Let me think...", result.Choices[0].Message.Reasoning.Content)
+		require.Equal(t, "sig_abc", result.Choices[0].Message.Reasoning.Signature)
+	})
+}
+
+func TestConvertAssistantMessageReasoning(t *testing.T) {
+	t.Parallel()
+
+	t.Run("prepends thinking block when Reasoning has signature", func(t *testing.T) {
+		t.Parallel()
+
+		msg := providers.Message{
+			Role:    providers.RoleAssistant,
+			Content: "Hello",
+			Reasoning: &providers.Reasoning{
+				Content:   "Let me think...",
+				Signature: "sig_abc",
+			},
+		}
+
+		result := convertAssistantMessage(msg)
+		data, err := result.MarshalJSON()
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		content, ok := parsed["content"].([]any)
+		require.True(t, ok)
+		require.Len(t, content, 2)
+
+		firstBlock := content[0].(map[string]any)
+		require.Equal(t, "thinking", firstBlock["type"])
+		require.Equal(t, "Let me think...", firstBlock["thinking"])
+		require.Equal(t, "sig_abc", firstBlock["signature"])
+	})
+
+	t.Run("skips thinking block when Signature is empty (cross-protocol)", func(t *testing.T) {
+		t.Parallel()
+
+		msg := providers.Message{
+			Role:    providers.RoleAssistant,
+			Content: "Hello",
+			Reasoning: &providers.Reasoning{
+				Content: "Let me think...",
+				// Signature intentionally empty — cross-protocol from OpenAI/zai.
+			},
+		}
+
+		result := convertAssistantMessage(msg)
+		data, err := result.MarshalJSON()
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		content, ok := parsed["content"].([]any)
+		require.True(t, ok)
+		// Only text block, no thinking block.
+		require.Len(t, content, 1)
+		require.Equal(t, "text", content[0].(map[string]any)["type"])
+	})
+
+	t.Run("prepends thinking block with tool calls", func(t *testing.T) {
+		t.Parallel()
+
+		msg := providers.Message{
+			Role:    providers.RoleAssistant,
+			Content: "Let me check",
+			ToolCalls: []providers.ToolCall{
+				{
+					ID:   "call_1",
+					Type: "function",
+					Function: providers.FunctionCall{
+						Name:      "get_weather",
+						Arguments: `{"city":"Tokyo"}`,
+					},
+				},
+			},
+			Reasoning: &providers.Reasoning{
+				Content:   "Need to check weather...",
+				Signature: "sig_xyz",
+			},
+		}
+
+		result := convertAssistantMessage(msg)
+		data, err := result.MarshalJSON()
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		content, ok := parsed["content"].([]any)
+		require.True(t, ok)
+		require.Len(t, content, 3) // thinking + text + tool_use
+
+		require.Equal(t, "thinking", content[0].(map[string]any)["type"])
+		require.Equal(t, "text", content[1].(map[string]any)["type"])
+		require.Equal(t, "tool_use", content[2].(map[string]any)["type"])
+	})
+}

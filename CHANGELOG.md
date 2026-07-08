@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-07-08
+
+### Added
+
+- `Reasoning.Signature` field for Anthropic thinking block round-trip
+- Protocol mapping documentation on `Reasoning`, `Message`, `Usage` types
+- `providers/openai/extra.go`: `stringFromExtra` helper for OpenAI SDK ExtraFields extraction
+
+### Fixed
+
+- Reasoning round-trip across providers: Anthropic preserves `ThinkingBlock.Signature` on response and prepends thinking block on request; OpenAI Compatible extracts `reasoning_content` from `JSON.ExtraFields` (response, chunk, delta) and injects via `SetExtraFields` (request)
+- Cross-protocol safety: Anthropic request path skips thinking block when `Signature` is empty (OpenAI/zai sourced reasoning)
+
 ## [0.15.0] - 2026-07-05
 
 ### Added

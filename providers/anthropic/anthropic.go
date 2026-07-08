@@ -582,18 +582,25 @@ func applyThinking(req *anthropic.MessageNewParams, effort providers.ReasoningEf
 
 // convertAssistantMessage converts an assistant message to Anthropic format.
 func convertAssistantMessage(msg providers.Message) *anthropic.MessageParam {
-	if len(msg.ToolCalls) == 0 {
-		m := anthropic.NewAssistantMessage(anthropic.NewTextBlock(msg.ContentString()))
-		return &m
+	content := make([]anthropic.ContentBlockParamUnion, 0)
+
+	// Thinking block 必须在文本和工具调用之前。
+	if msg.Reasoning != nil && msg.Reasoning.Content != "" && msg.Reasoning.Signature != "" {
+		content = append(content,
+			anthropic.NewThinkingBlock(msg.Reasoning.Signature, msg.Reasoning.Content))
 	}
 
-	content := make([]anthropic.ContentBlockParamUnion, 0)
 	if msg.ContentString() != "" {
 		content = append(content, anthropic.NewTextBlock(msg.ContentString()))
 	}
 
 	for _, tc := range msg.ToolCalls {
 		content = append(content, convertToolCall(tc))
+	}
+
+	// Anthropic 要求至少一个 content block。
+	if len(content) == 0 {
+		content = append(content, anthropic.NewTextBlock(""))
 	}
 
 	m := anthropic.NewAssistantMessage(content...)
@@ -668,7 +675,8 @@ func convertResponse(resp *anthropic.Message) *providers.ChatCompletion {
 			content += block.Text
 		case blockTypeThinking:
 			reasoning = &providers.Reasoning{
-				Content: block.Thinking,
+				Content:   block.Thinking,
+				Signature: block.Signature,
 			}
 		case blockTypeToolUse:
 			inputJSON := ""
