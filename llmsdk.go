@@ -22,6 +22,8 @@ import (
 	"github.com/code-koan/llm-sdk-go/errors"
 	"github.com/code-koan/llm-sdk-go/fallback"
 	"github.com/code-koan/llm-sdk-go/param"
+	"github.com/code-koan/llm-sdk-go/protocol/anthropic"
+	"github.com/code-koan/llm-sdk-go/protocol/responses"
 	"github.com/code-koan/llm-sdk-go/providers"
 	"github.com/code-koan/llm-sdk-go/providers/tokenizer"
 )
@@ -229,6 +231,36 @@ type (
 	RateLimitError           = errors.RateLimitError
 	UnsupportedParamError    = errors.UnsupportedParamError
 	UnsupportedProviderError = errors.UnsupportedProviderError
+)
+
+// Protocol types — Anthropic.
+type (
+	AnthropicMessageRequest  = anthropic.MessageRequest
+	AnthropicMessageResponse = anthropic.MessageResponse
+	AnthropicContentBlock    = anthropic.ContentBlock
+	AnthropicStreamEvent     = anthropic.StreamEvent
+)
+
+// Protocol converters — Anthropic.
+var (
+	AnthropicToCompletionParams = anthropic.ToCompletionParams
+	AnthropicFromCompletion     = anthropic.FromCompletion
+	NewAnthropicStreamAdapter   = anthropic.NewStreamAdapter
+)
+
+// Protocol types — Responses API.
+type (
+	ResponsesRequest     = responses.Request
+	ResponsesResponse    = responses.Response
+	ResponsesOutputItem  = responses.OutputItem
+	ResponsesStreamEvent = responses.StreamEvent
+)
+
+// Protocol converters — Responses API.
+var (
+	ResponsesToCompletionParams = responses.ToCompletionParams
+	ResponsesFromCompletion     = responses.FromCompletion
+	NewResponsesStreamAdapter   = responses.NewStreamAdapter
 )
 
 // Fallback types.

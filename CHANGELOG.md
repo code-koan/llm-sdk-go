@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2026-07-09
+
+### Added
+
+- **Protocol adapter layer `protocol/`**: public wire-format types, bi-directional converters, and streaming SSE adapters (#18)
+  - `protocol/anthropic/`: Anthropic Messages API types + `ToCompletionParams`/`FromCompletion` + `StreamAdapter`
+  - `protocol/anthropic/Provider`: native `Messages()`/`MessagesStream()` interface for zero-loss same-protocol path
+  - `protocol/responses/`: OpenAI Responses API types + converters + StreamAdapter
+- **`providers/anthropic/` implements `protocol/anthropic.Provider`**: direct Anthropic SDK call
+- **Root re-exports**: protocol types/converter functions available as `llmsdk.AnthropicMessageRequest` etc.
+
 ## [0.16.0] - 2026-07-08
 
 ### Added

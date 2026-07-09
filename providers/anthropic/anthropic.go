@@ -14,6 +14,7 @@ import (
 
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
+	protocolanthropic "github.com/code-koan/llm-sdk-go/protocol/anthropic"
 	"github.com/code-koan/llm-sdk-go/providers"
 )
 
@@ -74,6 +75,7 @@ var (
 	_ providers.CapabilityProvider = (*Provider)(nil)
 	_ providers.ErrorConverter     = (*Provider)(nil)
 	_ providers.Provider           = (*Provider)(nil)
+	_ protocolanthropic.Provider   = (*Provider)(nil)
 )
 
 // Provider implements the providers.Provider interface for Anthropic.
