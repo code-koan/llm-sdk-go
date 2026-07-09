@@ -1525,8 +1525,16 @@ func TestConvertResponseCacheUsage(t *testing.T) {
 				require.Nil(t, result.Usage.CacheCreation)
 			} else {
 				require.NotNil(t, result.Usage.CacheCreation)
-				require.Equal(t, tc.want.CacheCreation.Ephemeral1hInputTokens, result.Usage.CacheCreation.Ephemeral1hInputTokens)
-				require.Equal(t, tc.want.CacheCreation.Ephemeral5mInputTokens, result.Usage.CacheCreation.Ephemeral5mInputTokens)
+				require.Equal(
+					t,
+					tc.want.CacheCreation.Ephemeral1hInputTokens,
+					result.Usage.CacheCreation.Ephemeral1hInputTokens,
+				)
+				require.Equal(
+					t,
+					tc.want.CacheCreation.Ephemeral5mInputTokens,
+					result.Usage.CacheCreation.Ephemeral5mInputTokens,
+				)
 			}
 		})
 	}

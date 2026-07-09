@@ -155,7 +155,11 @@ func NewCompatible(compatCfg CompatibleConfig, opts ...config.Option) (*Compatib
 
 // NewChatModelFromCompatible creates a ChatModel for OpenAI-compatible providers.
 // This is a convenience for thin-wrapper providers (DeepSeek, Groq, Mistral, etc.).
-func NewChatModelFromCompatible(cfg CompatibleConfig, modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
+func NewChatModelFromCompatible(
+	cfg CompatibleConfig,
+	modelID string,
+	modelOpts ...providers.ModelOption,
+) (*providers.ChatModel, error) {
 	p, err := NewCompatible(cfg)
 	if err != nil {
 		return nil, err
@@ -859,10 +863,13 @@ func convertUserMessage(msg providers.Message) openai.ChatCompletionMessageParam
 				}
 			case providers.ContentTypeInputAudio:
 				if part.InputAudio != nil {
-					parts = append(parts, openai.InputAudioContentPart(openai.ChatCompletionContentPartInputAudioInputAudioParam{
-						Data:   part.InputAudio.Data,
-						Format: part.InputAudio.Format,
-					}))
+					parts = append(
+						parts,
+						openai.InputAudioContentPart(openai.ChatCompletionContentPartInputAudioInputAudioParam{
+							Data:   part.InputAudio.Data,
+							Format: part.InputAudio.Format,
+						}),
+					)
 				}
 			case providers.ContentTypeVideoURL:
 				// OpenAI API does not natively support video input.

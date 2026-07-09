@@ -3,9 +3,10 @@ package fallback
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/code-koan/llm-sdk-go/internal/testutil"
 	"github.com/code-koan/llm-sdk-go/providers"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRandomSelector_Select(t *testing.T) {

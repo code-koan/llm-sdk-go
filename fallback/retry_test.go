@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	sdkerrors "github.com/code-koan/llm-sdk-go/errors"
 	"github.com/stretchr/testify/require"
+
+	sdkerrors "github.com/code-koan/llm-sdk-go/errors"
 )
 
 func TestDefaultRetryPolicy_SwitchProviderErrors(t *testing.T) {

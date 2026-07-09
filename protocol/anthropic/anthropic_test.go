@@ -54,14 +54,18 @@ func TestToCompletionParams_Validation(t *testing.T) {
 
 	t.Run("empty model", func(t *testing.T) {
 		t.Parallel()
-		_, err := ToCompletionParams(&MessageRequest{Model: "", MaxTokens: 100, Messages: []Message{{Role: "user", Content: "hi"}}})
+		_, err := ToCompletionParams(
+			&MessageRequest{Model: "", MaxTokens: 100, Messages: []Message{{Role: "user", Content: "hi"}}},
+		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "model")
 	})
 
 	t.Run("zero max_tokens", func(t *testing.T) {
 		t.Parallel()
-		_, err := ToCompletionParams(&MessageRequest{Model: "claude", Messages: []Message{{Role: "user", Content: "hi"}}})
+		_, err := ToCompletionParams(
+			&MessageRequest{Model: "claude", Messages: []Message{{Role: "user", Content: "hi"}}},
+		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "max_tokens")
 	})
@@ -345,10 +349,27 @@ func TestStreamAdapter_TextOnly(t *testing.T) {
 
 	// Simulate chunks.
 	chunks := []providers.ChatCompletionChunk{
-		{ID: "msg_001", Model: "claude", Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Role: "assistant"}}}},
-		{ID: "msg_001", Model: "claude", Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: "Hello"}}}},
-		{ID: "msg_001", Model: "claude", Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: " world"}}}},
-		{ID: "msg_001", Model: "claude", Choices: []providers.ChunkChoice{{FinishReason: "stop"}}, Usage: &providers.Usage{CompletionTokens: 5}},
+		{
+			ID:      "msg_001",
+			Model:   "claude",
+			Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Role: "assistant"}}},
+		},
+		{
+			ID:      "msg_001",
+			Model:   "claude",
+			Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: "Hello"}}},
+		},
+		{
+			ID:      "msg_001",
+			Model:   "claude",
+			Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: " world"}}},
+		},
+		{
+			ID:      "msg_001",
+			Model:   "claude",
+			Choices: []providers.ChunkChoice{{FinishReason: "stop"}},
+			Usage:   &providers.Usage{CompletionTokens: 5},
+		},
 	}
 
 	for _, chunk := range chunks {
@@ -377,11 +398,15 @@ func TestStreamAdapter_WithToolCalls(t *testing.T) {
 	var allEvents []StreamEvent
 
 	chunks := []providers.ChatCompletionChunk{
-		{ID: "msg_001", Model: "claude", Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Role: "assistant"}}}},
+		{
+			ID:      "msg_001",
+			Model:   "claude",
+			Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Role: "assistant"}}},
+		},
 		{ID: "msg_001", Model: "claude", Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{
 			ToolCalls: []providers.ToolCall{{
-				ID:   "call_001",
-				Type: "function",
+				ID:       "call_001",
+				Type:     "function",
 				Function: providers.FunctionCall{Name: "get_weather"},
 			}},
 		}}}},
@@ -436,7 +461,12 @@ func TestRoundTrip(t *testing.T) {
 				Role: "assistant",
 				Content: []map[string]any{
 					{"type": "thinking", "thinking": "I should call the weather tool.", "signature": "sig_test"},
-					{"type": "tool_use", "id": "call_001", "name": "get_weather", "input": map[string]any{"location": "Paris"}},
+					{
+						"type":  "tool_use",
+						"id":    "call_001",
+						"name":  "get_weather",
+						"input": map[string]any{"location": "Paris"},
+					},
 				},
 			},
 			{
@@ -496,11 +526,11 @@ func TestRoundTrip(t *testing.T) {
 			FinishReason: providers.FinishReasonStop,
 		}},
 		Usage: &providers.Usage{
-			PromptTokens:            50,
-			CompletionTokens:        15,
-			TotalTokens:             65,
+			PromptTokens:             50,
+			CompletionTokens:         15,
+			TotalTokens:              65,
 			CacheCreationInputTokens: 10,
-			CacheReadInputTokens:    5,
+			CacheReadInputTokens:     5,
 			CacheCreation: &providers.CacheCreation{
 				Ephemeral5mInputTokens: 8,
 				Ephemeral1hInputTokens: 2,
@@ -553,13 +583,13 @@ func TestJSONRoundTrip(t *testing.T) {
 	t.Run("MessageResponse", func(t *testing.T) {
 		t.Parallel()
 		resp := MessageResponse{
-			ID:      "msg_001",
-			Type:    "message",
-			Role:    "assistant",
-			Model:   "claude-sonnet-4-20250514",
-			Content: []ContentBlock{{Type: "text", Text: "Hello"}},
+			ID:         "msg_001",
+			Type:       "message",
+			Role:       "assistant",
+			Model:      "claude-sonnet-4-20250514",
+			Content:    []ContentBlock{{Type: "text", Text: "Hello"}},
 			StopReason: StopReasonEndTurn,
-			Usage: Usage{InputTokens: 10, OutputTokens: 20},
+			Usage:      Usage{InputTokens: 10, OutputTokens: 20},
 		}
 		b, err := json.Marshal(resp)
 		require.NoError(t, err)

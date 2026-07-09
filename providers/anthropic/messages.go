@@ -3,7 +3,6 @@ package anthropic
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -126,17 +125,20 @@ func (p *Provider) MessagesStream(
 
 // msgStreamState tracks accumulated state during native Anthropic streaming.
 type msgStreamState struct {
-	messageID       string
-	model           string
-	inputTokens     int64
-	cacheCreateIn   int64
-	cacheReadIn     int64
+	messageID     string
+	model         string
+	inputTokens   int64
+	cacheCreateIn int64
+	cacheReadIn   int64
 }
 
 func newMsgStreamState() *msgStreamState { return &msgStreamState{} }
 
 // convertMsgStreamEvent converts an Anthropic streaming event to a protocolanthropic.StreamEvent.
-func convertMsgStreamEvent(event anthropic.MessageStreamEventUnion, state *msgStreamState) (protocolanthropic.StreamEvent, bool) {
+func convertMsgStreamEvent(
+	event anthropic.MessageStreamEventUnion,
+	state *msgStreamState,
+) (protocolanthropic.StreamEvent, bool) {
 	switch event.Type {
 	case eventMessageStart:
 		msg := event.AsMessageStart()
@@ -237,13 +239,19 @@ func convertMsgContentBlockDelta(event anthropic.ContentBlockDeltaEvent) protoco
 		return protocolanthropic.StreamEvent{
 			Type:  protocolanthropic.EventContentBlockDelta,
 			Index: idx,
-			Delta: protocolanthropic.ThinkingDelta{Type: protocolanthropic.DeltaTypeThinking, Thinking: event.Delta.Thinking},
+			Delta: protocolanthropic.ThinkingDelta{
+				Type:     protocolanthropic.DeltaTypeThinking,
+				Thinking: event.Delta.Thinking,
+			},
 		}
 	case deltaTypeInputJSON:
 		return protocolanthropic.StreamEvent{
 			Type:  protocolanthropic.EventContentBlockDelta,
 			Index: idx,
-			Delta: protocolanthropic.InputJSONDelta{Type: protocolanthropic.DeltaTypeInputJSON, PartialJSON: event.Delta.PartialJSON},
+			Delta: protocolanthropic.InputJSONDelta{
+				Type:        protocolanthropic.DeltaTypeInputJSON,
+				PartialJSON: event.Delta.PartialJSON,
+			},
 		}
 	default:
 		return protocolanthropic.StreamEvent{}
@@ -253,7 +261,10 @@ func convertMsgContentBlockDelta(event anthropic.ContentBlockDeltaEvent) protoco
 // --- Request/Response converters ---
 
 // convertMessageRequest converts a protocol MessageRequest to Anthropic SDK params.
-func convertMessageRequest(req *protocolanthropic.MessageRequest, log config.Logger) (anthropic.MessageNewParams, error) {
+func convertMessageRequest(
+	req *protocolanthropic.MessageRequest,
+	log config.Logger,
+) (anthropic.MessageNewParams, error) {
 	messages, system := convertProtocolMessages(req.Messages, log)
 
 	maxTokens := int64(defaultMaxTokens)
@@ -313,7 +324,10 @@ func convertMessageResponse(resp *anthropic.Message) *protocolanthropic.MessageR
 	for _, block := range resp.Content {
 		switch block.Type {
 		case blockTypeText:
-			content = append(content, protocolanthropic.ContentBlock{Type: protocolanthropic.BlockTypeText, Text: block.Text})
+			content = append(
+				content,
+				protocolanthropic.ContentBlock{Type: protocolanthropic.BlockTypeText, Text: block.Text},
+			)
 		case blockTypeThinking:
 			content = append(content, protocolanthropic.ContentBlock{
 				Type:      protocolanthropic.BlockTypeThinking,
@@ -367,7 +381,7 @@ func convertProtocolMessages(msgs []protocolanthropic.Message, log config.Logger
 	var systemParts []string
 	for _, msg := range msgs {
 		if msg.Role == providers.RoleSystem {
-			systemParts = append(systemParts, msgContentText(msg.Content))
+			systemParts = append(systemParts, protocolanthropic.ContentText(msg.Content))
 			continue
 		}
 		if converted := convertProtocolMessage(msg, log); converted != nil {
@@ -389,7 +403,7 @@ func convertProtocolMessage(msg protocolanthropic.Message, log config.Logger) *a
 }
 
 func convertProtocolUserMessage(msg protocolanthropic.Message, log config.Logger) *anthropic.MessageParam {
-	blocks, err := normalizeMsgBlocks(msg.Content)
+	blocks, err := protocolanthropic.NormalizeContentBlocks(msg.Content)
 	if err != nil || blocks == nil {
 		if s, ok := msg.Content.(string); ok {
 			m := anthropic.NewUserMessage(anthropic.NewTextBlock(s))
@@ -399,7 +413,7 @@ func convertProtocolUserMessage(msg protocolanthropic.Message, log config.Logger
 	}
 	content := make([]anthropic.ContentBlockParamUnion, 0, len(blocks))
 	for _, block := range blocks {
-		switch blockType(block) {
+		switch t := block["type"].(string); t {
 		case "text":
 			text, _ := block["text"].(string)
 			content = append(content, anthropic.NewTextBlock(text))
@@ -421,7 +435,7 @@ func convertProtocolUserMessage(msg protocolanthropic.Message, log config.Logger
 }
 
 func convertProtocolAssistantMessage(msg protocolanthropic.Message) *anthropic.MessageParam {
-	blocks, err := normalizeMsgBlocks(msg.Content)
+	blocks, err := protocolanthropic.NormalizeContentBlocks(msg.Content)
 	if err != nil || blocks == nil {
 		if s, ok := msg.Content.(string); ok {
 			m := anthropic.NewAssistantMessage(anthropic.NewTextBlock(s))
@@ -431,7 +445,7 @@ func convertProtocolAssistantMessage(msg protocolanthropic.Message) *anthropic.M
 	}
 	content := make([]anthropic.ContentBlockParamUnion, 0, len(blocks))
 	for _, block := range blocks {
-		switch blockType(block) {
+		switch t := block["type"].(string); t {
 		case "text":
 			text, _ := block["text"].(string)
 			content = append(content, anthropic.NewTextBlock(text))
@@ -508,54 +522,6 @@ func applyMsgThinking(req *anthropic.MessageNewParams, thinking *protocolanthrop
 			req.MaxTokens = m
 		}
 	}
-}
-
-// --- Shared helpers ---
-
-// normalizeMsgBlocks normalizes message content to []map[string]any.
-func normalizeMsgBlocks(content any) ([]map[string]any, error) {
-	switch v := content.(type) {
-	case string:
-		return nil, nil
-	case []any:
-		blocks := make([]map[string]any, 0, len(v))
-		for _, item := range v {
-			b, ok := item.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("expected content block object, got %T", item)
-			}
-			blocks = append(blocks, b)
-		}
-		return blocks, nil
-	case []map[string]any:
-		return v, nil
-	default:
-		return nil, fmt.Errorf("content must be a string or an array of blocks")
-	}
-}
-
-func msgContentText(content any) string {
-	switch v := content.(type) {
-	case string:
-		return v
-	case []any:
-		var parts []string
-		for _, item := range v {
-			if b, ok := item.(map[string]any); ok && b["type"] == "text" {
-				if t, ok := b["text"].(string); ok {
-					parts = append(parts, t)
-				}
-			}
-		}
-		return strings.Join(parts, "\n")
-	default:
-		return ""
-	}
-}
-
-func blockType(block map[string]any) string {
-	t, _ := block["type"].(string)
-	return t
 }
 
 func intPtr(v int) *int { return &v }

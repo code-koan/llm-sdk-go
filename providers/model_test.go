@@ -5,26 +5,31 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/code-koan/llm-sdk-go/param"
 	"github.com/stretchr/testify/require"
+
+	"github.com/code-koan/llm-sdk-go/param"
 )
 
 // ── Inline mock (avoids import cycle: testutil imports providers) ────────────
 
 type mockProvider struct {
-	name         string
-	caps         Capabilities
-	compCalls    []CompletionParams
+	name          string
+	caps          Capabilities
+	compCalls     []CompletionParams
 	compStrmCalls []CompletionParams
 }
 
-func (m *mockProvider) Name() string                                       { return m.name }
-func (m *mockProvider) Capabilities() Capabilities                         { return m.caps }
+func (m *mockProvider) Name() string               { return m.name }
+func (m *mockProvider) Capabilities() Capabilities { return m.caps }
 func (m *mockProvider) Completion(_ context.Context, p CompletionParams) (*ChatCompletion, error) {
 	m.compCalls = append(m.compCalls, p)
 	return &ChatCompletion{Model: p.Model}, nil
 }
-func (m *mockProvider) CompletionStream(_ context.Context, p CompletionParams) (<-chan ChatCompletionChunk, <-chan error) {
+
+func (m *mockProvider) CompletionStream(
+	_ context.Context,
+	p CompletionParams,
+) (<-chan ChatCompletionChunk, <-chan error) {
 	m.compStrmCalls = append(m.compStrmCalls, p)
 	ch := make(chan ChatCompletionChunk)
 	errCh := make(chan error, 1)

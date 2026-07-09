@@ -4,15 +4,15 @@ import "github.com/code-koan/llm-sdk-go/providers"
 
 // SSE event type constants for Responses API streaming.
 const (
-	EventResponseCreated                 = "response.created"
-	EventResponseOutputItemAdded         = "response.output_item.added"
-	EventResponseContentPartAdded        = "response.content_part.added"
-	EventResponseOutputTextDelta         = "response.output_text.delta"
-	EventResponseOutputTextDone          = "response.output_text.done"
+	EventResponseCreated                    = "response.created"
+	EventResponseOutputItemAdded            = "response.output_item.added"
+	EventResponseContentPartAdded           = "response.content_part.added"
+	EventResponseOutputTextDelta            = "response.output_text.delta"
+	EventResponseOutputTextDone             = "response.output_text.done"
 	EventResponseFunctionCallArgumentsDelta = "response.function_call_arguments.delta"
 	EventResponseFunctionCallArgumentsDone  = "response.function_call_arguments.done"
-	EventResponseOutputItemDone          = "response.output_item.done"
-	EventResponseCompleted               = "response.completed"
+	EventResponseOutputItemDone             = "response.output_item.done"
+	EventResponseCompleted                  = "response.completed"
 )
 
 // StreamEvent is a Responses API SSE event.
@@ -57,14 +57,14 @@ type ResponseCompletedEvent struct {
 
 // StreamAdapter converts ChatCompletionChunk stream to Responses API SSE events.
 type StreamAdapter struct {
-	respID      string
-	model       string
-	content     string
-	msgEmitted  bool
+	respID     string
+	model      string
+	content    string
+	msgEmitted bool
 
 	// Tool call accumulation.
-	toolCalls    []toolAccum
-	curTool      *toolAccum
+	toolCalls []toolAccum
+	curTool   *toolAccum
 
 	inputTokens  int
 	outputTokens int

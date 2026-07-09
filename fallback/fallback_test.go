@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/code-koan/llm-sdk-go/config"
-	"github.com/code-koan/llm-sdk-go/internal/testutil"
-	sdkerrors "github.com/code-koan/llm-sdk-go/errors"
-	"github.com/code-koan/llm-sdk-go/providers"
 	"github.com/stretchr/testify/require"
+
+	"github.com/code-koan/llm-sdk-go/config"
+	sdkerrors "github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/internal/testutil"
+	"github.com/code-koan/llm-sdk-go/providers"
 )
 
 // immediateRetry is a RetryPolicy that retries immediately (no wait) for all

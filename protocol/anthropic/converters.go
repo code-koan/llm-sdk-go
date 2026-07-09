@@ -1,173 +1,12 @@
 package anthropic
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/code-koan/llm-sdk-go/providers"
 )
-
-// Content block type constants.
-const (
-	BlockTypeText       = "text"
-	BlockTypeThinking   = "thinking"
-	BlockTypeToolUse    = "tool_use"
-	BlockTypeToolResult = "tool_result"
-	BlockTypeImage      = "image"
-)
-
-// Stop reason constants.
-const (
-	StopReasonEndTurn      = "end_turn"
-	StopReasonMaxTokens    = "max_tokens"
-	StopReasonStopSequence = "stop_sequence"
-	StopReasonToolUse      = "tool_use"
-)
-
-// Message role constants.
-const (
-	RoleAssistant = "assistant"
-	RoleUser      = "user"
-)
-
-// Thinking type constants.
-const (
-	ThinkingTypeAuto    = "auto"
-	ThinkingTypeEnabled = "enabled"
-)
-
-// --- Request types ---
-
-// MessageRequest is an Anthropic Messages API request body.
-type MessageRequest struct {
-	Model         string          `json:"model"`
-	Messages      []Message       `json:"messages"`
-	System        any             `json:"system,omitempty"` // string | []TextBlock
-	MaxTokens     int             `json:"max_tokens"`
-	Metadata      *Metadata       `json:"metadata,omitempty"`
-	StopSequences []string        `json:"stop_sequences,omitempty"`
-	Stream        bool            `json:"stream,omitempty"`
-	Temperature   *float64        `json:"temperature,omitempty"`
-	TopP          *float64        `json:"top_p,omitempty"`
-	TopK          *int            `json:"top_k,omitempty"`
-	Tools         []Tool          `json:"tools,omitempty"`
-	ToolChoice    json.RawMessage `json:"tool_choice,omitempty"`
-	Thinking      *ThinkingConfig `json:"thinking,omitempty"`
-}
-
-// Message is a single Anthropic input message.
-type Message struct {
-	Role    string         `json:"role"`
-	Content any            `json:"content"` // string | []ContentBlock
-}
-
-// TextBlock is a system prompt text block.
-type TextBlock struct {
-	Type string `json:"type"` // always "text"
-	Text string `json:"text"`
-}
-
-// ContentBlock represents one element of a content array.
-type ContentBlock struct {
-	Type      string          `json:"type"`
-	Text      string          `json:"text,omitempty"`
-	ID        string          `json:"id,omitempty"`
-	Name      string          `json:"name,omitempty"`
-	Input     json.RawMessage `json:"input,omitempty"`    // tool_use input (JSON object)
-	Content   any             `json:"content,omitempty"`  // tool_result content
-	ToolUseID string          `json:"tool_use_id,omitempty"`
-	IsError   *bool           `json:"is_error,omitempty"`
-	Thinking  string          `json:"thinking,omitempty"`
-	Signature string          `json:"signature,omitempty"` // thinking block signature
-	Source    *ImageSource    `json:"source,omitempty"`    // image source
-}
-
-// ImageSource represents an image source in Anthropic format.
-type ImageSource struct {
-	Type      string `json:"type"`       // "base64" or "url"
-	MediaType string `json:"media_type"` // e.g. "image/jpeg"
-	Data      string `json:"data,omitempty"`
-	URL       string `json:"url,omitempty"`
-}
-
-// ThinkingConfig configures extended thinking.
-type ThinkingConfig struct {
-	Type         string `json:"type"`
-	BudgetTokens int    `json:"budget_tokens,omitempty"`
-}
-
-// Tool matches the Anthropic API tool format.
-type Tool struct {
-	Name        string       `json:"name"`
-	Description string       `json:"description,omitempty"`
-	InputSchema *InputSchema `json:"input_schema,omitempty"`
-}
-
-// InputSchema is the JSON Schema for a tool's input.
-type InputSchema struct {
-	Type       string         `json:"type"`
-	Properties map[string]any `json:"properties,omitempty"`
-	Required   []string       `json:"required,omitempty"`
-}
-
-// Metadata holds per-request Anthropic metadata.
-type Metadata struct {
-	UserID string `json:"user_id,omitempty"`
-}
-
-// --- Response types ---
-
-// MessageResponse is an Anthropic Messages API response body.
-type MessageResponse struct {
-	ID           string         `json:"id"`
-	Type         string         `json:"type"`
-	Role         string         `json:"role"`
-	Content      []ContentBlock `json:"content"`
-	Model        string         `json:"model"`
-	StopReason   string         `json:"stop_reason"`
-	StopSequence *string        `json:"stop_sequence"`
-	Usage        Usage          `json:"usage"`
-}
-
-// Usage is token usage in Anthropic format.
-type Usage struct {
-	InputTokens              int            `json:"input_tokens"`
-	OutputTokens             int            `json:"output_tokens"`
-	CacheCreationInputTokens int            `json:"cache_creation_input_tokens,omitempty"`
-	CacheReadInputTokens     int            `json:"cache_read_input_tokens,omitempty"`
-	CacheCreation            *CacheCreation `json:"cache_creation,omitempty"`
-}
-
-// CacheCreation describes cache creation usage by TTL bucket.
-type CacheCreation struct {
-	Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens,omitempty"`
-	Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens,omitempty"`
-}
-
-// ErrorResponse is an Anthropic-compatible error envelope.
-type ErrorResponse struct {
-	Type  string      `json:"type"`
-	Error ErrorDetail `json:"error"`
-}
-
-// ErrorDetail is the nested error object.
-type ErrorDetail struct {
-	Type    string `json:"type"`
-	Message string `json:"message"`
-}
-
-// --- Provider interface ---
-
-// Provider is an optional interface for providers that natively support the
-// Anthropic Messages API. Same-protocol calls bypass CompletionParams entirely,
-// achieving zero-loss forward and backward conversion.
-type Provider interface {
-	providers.Provider
-	Messages(ctx context.Context, req *MessageRequest) (*MessageResponse, error)
-	MessagesStream(ctx context.Context, req *MessageRequest) (<-chan StreamEvent, <-chan error)
-}
 
 // ToCompletionParams converts an Anthropic Messages API request to SDK
 // CompletionParams. Used for the cross-protocol path when the resolved
@@ -328,7 +167,7 @@ func convertMessages(messages []Message) ([]providers.Message, error) {
 	for i, msg := range messages {
 		// System role in messages array — convert to SDK system message.
 		if msg.Role == providers.RoleSystem {
-			text := contentText(msg.Content)
+			text := ContentText(msg.Content)
 			result = append(result, providers.Message{Role: providers.RoleSystem, Content: text})
 			continue
 		}
@@ -355,9 +194,9 @@ func convertMessages(messages []Message) ([]providers.Message, error) {
 	return result, nil
 }
 
-// normalizeContentBlocks converts content to a []map[string]any block list.
+// NormalizeContentBlocks converts content to a []map[string]any block list.
 // Accepts string, []any, or []map[string]any.
-func normalizeContentBlocks(content any) ([]map[string]any, error) {
+func NormalizeContentBlocks(content any) ([]map[string]any, error) {
 	switch v := content.(type) {
 	case string:
 		return nil, nil // signal string path
@@ -378,9 +217,9 @@ func normalizeContentBlocks(content any) ([]map[string]any, error) {
 	}
 }
 
-// contentText extracts a plain text string from message content.
-func contentText(content any) string {
-	blocks, err := normalizeContentBlocks(content)
+// ContentText extracts a plain text string from message content.
+func ContentText(content any) string {
+	blocks, err := NormalizeContentBlocks(content)
 	if err != nil || blocks == nil {
 		if s, ok := content.(string); ok {
 			return s
@@ -401,7 +240,7 @@ func contentText(content any) string {
 // convertUserMessage converts an Anthropic user message to SDK messages.
 // Returns multiple messages when tool_result blocks are present.
 func convertUserMessage(idx int, content any) ([]providers.Message, error) {
-	blocks, err := normalizeContentBlocks(content)
+	blocks, err := NormalizeContentBlocks(content)
 	if err != nil {
 		return nil, fmt.Errorf("messages[%d].content: %w", idx, err)
 	}
@@ -480,7 +319,7 @@ func convertImageSource(src map[string]any) *providers.ImageURL {
 
 // convertAssistantMessage converts an Anthropic assistant message to an SDK message.
 func convertAssistantMessage(idx int, content any) (providers.Message, error) {
-	blocks, err := normalizeContentBlocks(content)
+	blocks, err := NormalizeContentBlocks(content)
 	if err != nil {
 		return providers.Message{}, fmt.Errorf("messages[%d].content: %w", idx, err)
 	}

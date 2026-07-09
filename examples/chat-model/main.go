@@ -46,7 +46,6 @@ func main() {
 		WithText("Say 'hello world' in JSON format.").
 		WithMaxTokens(50).
 		Exec(ctx)
-
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "exec: %v\n", err)
 		os.Exit(1)

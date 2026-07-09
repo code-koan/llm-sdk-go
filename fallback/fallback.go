@@ -25,11 +25,11 @@ var (
 // selection and retry policies. It implements providers.Provider so it can be
 // used as a drop-in replacement anywhere a single provider is expected.
 type Router struct {
-	providers             []providers.Provider
-	selector              Selector
-	retryPolicy           RetryPolicy
+	providers              []providers.Provider
+	selector               Selector
+	retryPolicy            RetryPolicy
 	maxAttemptsPerProvider int
-	logger                config.Logger
+	logger                 config.Logger
 }
 
 // Option configures a Router.
@@ -226,7 +226,10 @@ func (r *Router) Completion(ctx context.Context, params providers.CompletionPara
 // CompletionStream streams from providers with fallback on initial connection
 // failure. Once the first chunk is delivered from a provider the stream is
 // forwarded as-is; mid-stream failures are not retried.
-func (r *Router) CompletionStream(ctx context.Context, params providers.CompletionParams) (<-chan providers.ChatCompletionChunk, <-chan error) {
+func (r *Router) CompletionStream(
+	ctx context.Context,
+	params providers.CompletionParams,
+) (<-chan providers.ChatCompletionChunk, <-chan error) {
 	outChunks := make(chan providers.ChatCompletionChunk)
 	outErrs := make(chan error, 1)
 

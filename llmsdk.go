@@ -22,6 +22,7 @@ import (
 	"github.com/code-koan/llm-sdk-go/errors"
 	"github.com/code-koan/llm-sdk-go/fallback"
 	"github.com/code-koan/llm-sdk-go/param"
+	"github.com/code-koan/llm-sdk-go/protocol"
 	"github.com/code-koan/llm-sdk-go/protocol/anthropic"
 	"github.com/code-koan/llm-sdk-go/protocol/responses"
 	"github.com/code-koan/llm-sdk-go/providers"
@@ -70,6 +71,19 @@ const (
 	ContentTypeInputAudio = providers.ContentTypeInputAudio
 	ContentTypeText       = providers.ContentTypeText
 	ContentTypeVideoURL   = providers.ContentTypeVideoURL
+)
+
+// Protocol constants for protocol hub routing.
+const (
+	ProtocolAnthropic = protocol.Anthropic
+	ProtocolOpenAI    = protocol.OpenAI
+	ProtocolResponses = protocol.Responses
+)
+
+// Protocol hub types.
+type (
+	ProtocolResponse = protocol.Response
+	ProtocolDef      = protocol.ProtocolDef
 )
 
 // Provider types.
@@ -180,6 +194,18 @@ var (
 	WithUserID     = config.WithUserID
 )
 
+// Message construction helpers.
+var (
+	System     = providers.System
+	User       = providers.User
+	Assistant  = providers.Assistant
+	ToolResult = providers.ToolResult
+	TextPart   = providers.Text
+	ImagePart  = providers.Image
+	AudioPart  = providers.Audio
+	VideoPart  = providers.Video
+)
+
 // Model construction and configuration.
 var (
 	NewChatModel = providers.NewChatModel
@@ -287,4 +313,9 @@ var (
 	CountTokens             = tokenizer.CountTokens
 	CountTokensWithEncoding = tokenizer.CountTokensWithEncoding
 	CountText               = tokenizer.CountText
+)
+
+// Protocol hub functions.
+var (
+	ProtocolUsing = protocol.Using
 )

@@ -19,10 +19,10 @@ const (
 
 // Delta type constants.
 const (
-	DeltaTypeText       = "text_delta"
-	DeltaTypeThinking   = "thinking_delta"
-	DeltaTypeInputJSON  = "input_json_delta"
-	DeltaTypeSignature  = "signature_delta"
+	DeltaTypeText      = "text_delta"
+	DeltaTypeThinking  = "thinking_delta"
+	DeltaTypeInputJSON = "input_json_delta"
+	DeltaTypeSignature = "signature_delta"
 )
 
 // StreamEvent is an Anthropic streaming SSE event.
@@ -40,7 +40,7 @@ type StreamEvent struct {
 	Delta any `json:"delta,omitempty"`
 
 	// message_delta payload
-	UsageDelta  *UsageDelta `json:"usage,omitempty"`
+	UsageDelta *UsageDelta `json:"usage,omitempty"`
 
 	// error payload
 	Error *ErrorDetail `json:"error,omitempty"`
@@ -81,17 +81,17 @@ type MessageDelta struct {
 // StreamAdapter tracks state across a stream of ChatCompletionChunks and
 // produces Anthropic SSE events. One instance per stream.
 type StreamAdapter struct {
-	messageID          string
-	model              string
-	content            strings.Builder
-	reasoning          strings.Builder
-	reasoningSig       string
-	toolCalls          []toolCallAccum
-	currentToolIdx     int
-	inputTokens        int
-	cacheCreateTokens  int
-	cacheReadTokens    int
-	outputTokens       int
+	messageID         string
+	model             string
+	content           strings.Builder
+	reasoning         strings.Builder
+	reasoningSig      string
+	toolCalls         []toolCallAccum
+	currentToolIdx    int
+	inputTokens       int
+	cacheCreateTokens int
+	cacheReadTokens   int
+	outputTokens      int
 
 	started           bool
 	reasoningStarted  bool

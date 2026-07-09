@@ -77,25 +77,46 @@ func NewChatModel(provider Provider, modelID string, opts ...ModelOption) (*Chat
 	if cp, ok := provider.(CapabilityProvider); ok {
 		pc := cp.Capabilities()
 		if mc.Audio && !pc.CompletionAudio {
-			return nil, fmt.Errorf("%s: model capability Audio requested but provider does not support audio", provider.Name())
+			return nil, fmt.Errorf(
+				"%s: model capability Audio requested but provider does not support audio",
+				provider.Name(),
+			)
 		}
 		if mc.Image && !pc.CompletionImage {
-			return nil, fmt.Errorf("%s: model capability Image requested but provider does not support images", provider.Name())
+			return nil, fmt.Errorf(
+				"%s: model capability Image requested but provider does not support images",
+				provider.Name(),
+			)
 		}
 		if mc.Video && !pc.CompletionVideo {
-			return nil, fmt.Errorf("%s: model capability Video requested but provider does not support video", provider.Name())
+			return nil, fmt.Errorf(
+				"%s: model capability Video requested but provider does not support video",
+				provider.Name(),
+			)
 		}
 		if mc.PDF && !pc.CompletionPDF {
-			return nil, fmt.Errorf("%s: model capability PDF requested but provider does not support PDF", provider.Name())
+			return nil, fmt.Errorf(
+				"%s: model capability PDF requested but provider does not support PDF",
+				provider.Name(),
+			)
 		}
 		if mc.Reasoning && !pc.CompletionReasoning {
-			return nil, fmt.Errorf("%s: model capability Reasoning requested but provider does not support reasoning", provider.Name())
+			return nil, fmt.Errorf(
+				"%s: model capability Reasoning requested but provider does not support reasoning",
+				provider.Name(),
+			)
 		}
 		if mc.Streaming && !pc.CompletionStreaming {
-			return nil, fmt.Errorf("%s: model capability Streaming requested but provider does not support streaming", provider.Name())
+			return nil, fmt.Errorf(
+				"%s: model capability Streaming requested but provider does not support streaming",
+				provider.Name(),
+			)
 		}
 		if mc.Tools && !pc.CompletionTools {
-			return nil, fmt.Errorf("%s: model capability Tools requested but provider does not support tools", provider.Name())
+			return nil, fmt.Errorf(
+				"%s: model capability Tools requested but provider does not support tools",
+				provider.Name(),
+			)
 		}
 	}
 
@@ -174,7 +195,10 @@ func (m *ChatModel) Completion(ctx context.Context, params CompletionParams) (*C
 }
 
 // CompletionStream executes a streaming chat completion directly on this model.
-func (m *ChatModel) CompletionStream(ctx context.Context, params CompletionParams) (<-chan ChatCompletionChunk, <-chan error) {
+func (m *ChatModel) CompletionStream(
+	ctx context.Context,
+	params CompletionParams,
+) (<-chan ChatCompletionChunk, <-chan error) {
 	params.Model = m.modelID
 	params.Stream = true
 	return m.provider.CompletionStream(ctx, params)
@@ -236,14 +260,7 @@ func (b *ChatBuilder) WithAudio(audioData []byte, format string) *ChatBuilder {
 	}
 	encoded := base64.StdEncoding.EncodeToString(audioData)
 	dataURL := fmt.Sprintf("data:audio/%s;base64,%s", format, encoded)
-	b.messages = append(b.messages, Message{
-		Content: []ContentPart{
-			{
-				Type:       ContentTypeInputAudio,
-				InputAudio: &InputAudio{Data: dataURL, Format: format},
-			},
-		},
-	})
+	b.messages = append(b.messages, User([]ContentPart{Audio(dataURL, format)}))
 	return b
 }
 
@@ -277,14 +294,7 @@ func (b *ChatBuilder) WithImage(imageURL string) *ChatBuilder {
 	if !b.model.capabilities.Image {
 		return b
 	}
-	b.messages = append(b.messages, Message{
-		Content: []ContentPart{
-			{
-				Type:     ContentTypeImageURL,
-				ImageURL: &ImageURL{URL: imageURL},
-			},
-		},
-	})
+	b.messages = append(b.messages, User([]ContentPart{Image(imageURL)}))
 	return b
 }
 
@@ -352,7 +362,7 @@ func (b *ChatBuilder) WithStream() *ChatBuilder {
 
 // WithSystem appends a system message.
 func (b *ChatBuilder) WithSystem(text string) *ChatBuilder {
-	b.messages = append(b.messages, Message{Role: RoleSystem, Content: text})
+	b.messages = append(b.messages, System(text))
 	return b
 }
 
@@ -370,7 +380,7 @@ func (b *ChatBuilder) WithTemperatureOpt(opt param.Opt[float64]) *ChatBuilder {
 
 // WithText appends a user text message.
 func (b *ChatBuilder) WithText(text string) *ChatBuilder {
-	b.messages = append(b.messages, Message{Role: RoleUser, Content: text})
+	b.messages = append(b.messages, User(text))
 	return b
 }
 
@@ -418,14 +428,7 @@ func (b *ChatBuilder) WithVideo(videoURL string) *ChatBuilder {
 	if !b.model.capabilities.Video {
 		return b
 	}
-	b.messages = append(b.messages, Message{
-		Content: []ContentPart{
-			{
-				Type:     ContentTypeVideoURL,
-				VideoURL: &VideoURL{URL: videoURL},
-			},
-		},
-	})
+	b.messages = append(b.messages, User([]ContentPart{Video(videoURL)}))
 	return b
 }
 

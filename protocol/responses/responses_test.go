@@ -99,7 +99,12 @@ func TestToCompletionParams_WithMultiTurnInput(t *testing.T) {
 
 	input := []any{
 		map[string]any{"role": "user", "content": "What is the weather?"},
-		map[string]any{"type": "function_call", "call_id": "call_001", "name": "get_weather", "arguments": `{"location":"Paris"}`},
+		map[string]any{
+			"type":      "function_call",
+			"call_id":   "call_001",
+			"name":      "get_weather",
+			"arguments": `{"location":"Paris"}`,
+		},
 		map[string]any{"type": "function_call_output", "call_id": "call_001", "output": "22°C and sunny"},
 		map[string]any{"role": "user", "content": "Great, thanks!"},
 	}
@@ -196,9 +201,21 @@ func TestStreamAdapter_TextOnly(t *testing.T) {
 	adapter.SetModel("gpt-4o-mini")
 
 	chunks := []providers.ChatCompletionChunk{
-		{ID: "resp_001", Model: "gpt-4o-mini", Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: "Hello"}}}},
-		{ID: "resp_001", Model: "gpt-4o-mini", Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: " world"}}}},
-		{ID: "resp_001", Model: "gpt-4o-mini", Usage: &providers.Usage{PromptTokens: 10, CompletionTokens: 3, TotalTokens: 13}},
+		{
+			ID:      "resp_001",
+			Model:   "gpt-4o-mini",
+			Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: "Hello"}}},
+		},
+		{
+			ID:      "resp_001",
+			Model:   "gpt-4o-mini",
+			Choices: []providers.ChunkChoice{{Delta: providers.ChunkDelta{Content: " world"}}},
+		},
+		{
+			ID:    "resp_001",
+			Model: "gpt-4o-mini",
+			Usage: &providers.Usage{PromptTokens: 10, CompletionTokens: 3, TotalTokens: 13},
+		},
 	}
 
 	var allEvents []StreamEvent
@@ -238,7 +255,9 @@ func TestJSONRoundTrip(t *testing.T) {
 			Object: "response",
 			Status: StatusCompleted,
 			Model:  "gpt-4o-mini",
-			Output: []OutputItem{{Type: "message", Role: "assistant", Content: []ContentPart{{Type: "output_text", Text: "Hi"}}}},
+			Output: []OutputItem{
+				{Type: "message", Role: "assistant", Content: []ContentPart{{Type: "output_text", Text: "Hi"}}},
+			},
 		}
 		b, err := json.Marshal(resp)
 		require.NoError(t, err)

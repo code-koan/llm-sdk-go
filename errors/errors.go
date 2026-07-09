@@ -303,6 +303,76 @@ func NewUnsupportedParamError(provider string, param string) *UnsupportedParamEr
 	}
 }
 
+// ClassifyErrorCode categorizes an error for HTTP status mapping.
+type ClassifyErrorCode int
+
+const (
+	CodeBadRequest     ClassifyErrorCode = 400
+	CodeUnauthorized   ClassifyErrorCode = 401
+	CodeRateLimited    ClassifyErrorCode = 429
+	CodeInternal       ClassifyErrorCode = 500
+	CodeBadGateway     ClassifyErrorCode = 502
+	CodeServiceUnavail ClassifyErrorCode = 503
+)
+
+// Classify categorizes an SDK error and returns its error code, HTTP status, and message.
+// It first checks typed errors via errors.As, then falls back to string matching.
+func Classify(err error) (code ClassifyErrorCode, httpStatus int, msg string) {
+	// Check typed errors first
+	var authErr *AuthenticationError
+	if stderrors.As(err, &authErr) {
+		return CodeUnauthorized, 401, authErr.Error()
+	}
+	var rateLimitErr *RateLimitError
+	if stderrors.As(err, &rateLimitErr) {
+		return CodeRateLimited, 429, rateLimitErr.Error()
+	}
+	var invalidReqErr *InvalidRequestError
+	if stderrors.As(err, &invalidReqErr) {
+		return CodeBadRequest, 400, invalidReqErr.Error()
+	}
+	var contextLenErr *ContextLengthError
+	if stderrors.As(err, &contextLenErr) {
+		return CodeBadRequest, 400, contextLenErr.Error()
+	}
+	var contentFilterErr *ContentFilterError
+	if stderrors.As(err, &contentFilterErr) {
+		return CodeBadRequest, 400, contentFilterErr.Error()
+	}
+	var modelNotFoundErr *ModelNotFoundError
+	if stderrors.As(err, &modelNotFoundErr) {
+		return CodeBadRequest, 400, modelNotFoundErr.Error()
+	}
+	var missingKeyErr *MissingAPIKeyError
+	if stderrors.As(err, &missingKeyErr) {
+		return CodeUnauthorized, 401, missingKeyErr.Error()
+	}
+	var providerErr *ProviderError
+	if stderrors.As(err, &providerErr) {
+		return CodeBadGateway, 502, providerErr.Error()
+	}
+
+	// Fallback: use the base error
+	var baseErr *BaseError
+	if stderrors.As(err, &baseErr) {
+		msg = baseErr.Error()
+		switch {
+		case strings.Contains(strings.ToLower(msg), "rate limit"),
+			strings.Contains(strings.ToLower(msg), "too many requests"):
+			return CodeRateLimited, 429, msg
+		case strings.Contains(strings.ToLower(msg), "unauthorized"),
+			strings.Contains(strings.ToLower(msg), "authentication"),
+			strings.Contains(strings.ToLower(msg), "invalid api key"):
+			return CodeUnauthorized, 401, msg
+		default:
+			return CodeBadGateway, 502, msg
+		}
+	}
+
+	// Unknown error
+	return CodeInternal, 500, err.Error()
+}
+
 func collectRateLimitHeadersWithKeys(headers http.Header, keys []string) map[string]string {
 	result := make(map[string]string)
 	for _, key := range keys {

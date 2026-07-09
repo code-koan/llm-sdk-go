@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.18.0 (2026-07-09)
+
+### Added
+
+- **Protocol Hub** (`protocol/hub.go`): Chainable `.Input().Want().Call()` API for transparent protocol routing. Each protocol registers via `init()` with auto-detection, ToSDK/FromSDK converters, and stream adapter factory.
+- **Message helpers** (`providers/message.go`): `System()`, `User()`, `Assistant()`, `ToolResult()`, `Text()`, `Image()`, `Audio()`, `Video()` constructors for protocol-agnostic message building.
+- **Error classification** (`errors/errors.go`): `Classify()` function maps SDK typed errors to HTTP status codes (400/401/429/500/502/503).
+- **Usage conversion**: `NormalizeContentBlocks()` and `ContentText()` exported from protocol/anthropic converters.
+
+### Changed
+
+- **Refactored `protocol/anthropic/`**: Split `anthropic.go` into `types.go` + `converters.go` + `provider.go` + `register.go` + `hub_adapter.go`.
+- **Refactored `protocol/responses/`**: Split `responses.go` into `types.go` + `converters.go` + `register.go` + `hub_adapter.go`.
+- **Simplified `providers/anthropic/messages.go`**: Reuses `NormalizeContentBlocks`/`ContentText` from protocol/anthropic, eliminating duplicated helpers.
+- **ChatBuilder** internal methods now use new message helper functions.
+
 ## [0.17.0] - 2026-07-09
 
 ### Added
