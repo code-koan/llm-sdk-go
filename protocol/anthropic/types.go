@@ -1,6 +1,10 @@
 package anthropic
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/code-koan/llm-sdk-go/providers"
+)
 
 // Content block type constants.
 const (
@@ -137,6 +141,24 @@ type Usage struct {
 type CacheCreation struct {
 	Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens,omitempty"`
 	Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens,omitempty"`
+}
+
+// ToSDK converts Usage to the SDK's providers.Usage format.
+func (u Usage) ToSDK() *providers.Usage {
+	sdkUsage := &providers.Usage{
+		PromptTokens:             u.InputTokens,
+		CompletionTokens:         u.OutputTokens,
+		TotalTokens:              u.InputTokens + u.OutputTokens,
+		CacheCreationInputTokens: u.CacheCreationInputTokens,
+		CacheReadInputTokens:     u.CacheReadInputTokens,
+	}
+	if u.CacheCreation != nil {
+		sdkUsage.CacheCreation = &providers.CacheCreation{
+			Ephemeral1hInputTokens: u.CacheCreation.Ephemeral1hInputTokens,
+			Ephemeral5mInputTokens: u.CacheCreation.Ephemeral5mInputTokens,
+		}
+	}
+	return sdkUsage
 }
 
 // ErrorResponse is an Anthropic-compatible error envelope.

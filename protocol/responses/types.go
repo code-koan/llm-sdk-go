@@ -1,5 +1,7 @@
 package responses
 
+import "github.com/code-koan/llm-sdk-go/providers"
+
 // Response status constants.
 const (
 	StatusInProgress = "in_progress"
@@ -90,4 +92,14 @@ type Usage struct {
 	OutputTokens    int `json:"output_tokens"`
 	TotalTokens     int `json:"total_tokens"`
 	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
+}
+
+// ToSDK converts Usage to the SDK's providers.Usage format.
+func (u Usage) ToSDK() *providers.Usage {
+	return &providers.Usage{
+		PromptTokens:     u.InputTokens,
+		CompletionTokens: u.OutputTokens,
+		TotalTokens:      u.TotalTokens,
+		ReasoningTokens:  u.ReasoningTokens,
+	}
 }
