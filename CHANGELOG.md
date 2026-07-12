@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.19.0 (2026-07-12)
+
+### Added
+
+- **Tool code generation** (`internal/codegen/` + `cmd/llm-tools/`): `//tool:service` annotation on Go
+  interfaces generates `<name>.gen.go` containing Tool schemas for ChatBuilder, type-safe dispatch
+  handler, and MCP JSON-RPC 2.0 server. See `docs/tools.md` and `examples/tools-gen/`.
+- **Schema engine** (`internal/codegen/schema.go`): `GenerateSchema()` converts Go types
+  (via `go/types`) to JSON Schema maps, with `json` tag and `//tool:enum` annotation support.
+- **AST parser** (`internal/codegen/parse.go`): `ParseService()` extracts annotated interfaces
+  and resolves parameter/return types via `go/types`.
+- **`make gen-tools`** and **`make test-gen`** targets for building the code generator and
+  running codegen tests.
+
 ## v0.18.1 (2026-07-09)
 
 ### Added

@@ -1,3 +1,8 @@
+# Build the llm-tools code generation binary
+.PHONY: gen-tools
+gen-tools:
+	go build -o _tools/llm-tools ./cmd/llm-tools/
+
 # Show available targets
 .PHONY: help
 help:
@@ -16,11 +21,11 @@ help:
 
 # Run all checks (lint + test + build)
 .PHONY: all
-all: test build
+all: gen-tools test build
 
 # Build and verify compilation
 .PHONY: build
-build:
+build: gen-tools
 	go build ./...
 
 # Clean test cache
@@ -47,6 +52,12 @@ test-only:
 .PHONY: test-unit
 test-unit:
 	go test -v -race -short ./...
+
+# Run code generation related tests
+.PHONY: test-gen
+test-gen:
+	go test -count=1 ./internal/codegen/...
+	go test -count=1 ./cmd/llm-tools/...
 
 # Tidy dependencies
 .PHONY: tidy

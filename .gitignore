@@ -41,3 +41,6 @@ Thumbs.db
 # Build output
 dist/
 bin/
+
+# Code generation output
+_tools/
