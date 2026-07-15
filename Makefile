@@ -17,6 +17,8 @@ help:
 	@echo "  test       Run linting then all tests"
 	@echo "  test-only  Run all tests without linting"
 	@echo "  test-unit  Run unit tests only (skip integration)"
+	@echo "  check-docs Check _index.md coverage"
+	@echo "  setup-hooks Install git pre-commit hook"
 	@echo "  tidy       Tidy go.mod dependencies"
 
 # Run all checks (lint + test + build)
@@ -58,6 +60,23 @@ test-unit:
 test-gen:
 	go test -count=1 ./internal/codegen/...
 	go test -count=1 ./cmd/llm-tools/...
+
+# Auto-generate missing _index.md from godoc
+.PHONY: gen-index
+gen-index:
+	@go run ./cmd/tools index gen
+
+# Check _index.md coverage
+.PHONY: check-docs
+check-docs:
+	@go run ./cmd/tools index check
+
+# Install git pre-commit hook
+.PHONY: setup-hooks
+setup-hooks:
+	@printf '#!/bin/sh\nexec make check-docs\n' > .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "pre-commit hook installed -> make check-docs"
 
 # Tidy dependencies
 .PHONY: tidy

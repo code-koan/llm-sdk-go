@@ -1,0 +1,25 @@
+# graphify output
+graphify-out/
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# Dependencies
+vendor/
+
+# Generated / build artifacts
+_tools/
+dist/
+bin/
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+
+# Go module checksums (no semantic value)
+go.sum
+
+# IDE
+.idea/
+.vscode/

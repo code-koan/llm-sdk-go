@@ -44,3 +44,7 @@ bin/
 
 # Code generation output
 _tools/
+
+**/graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/wiki/
