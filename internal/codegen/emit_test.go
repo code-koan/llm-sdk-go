@@ -55,7 +55,7 @@ func TestEmit_Compiles(t *testing.T) {
 
 	// Modify package declaration from "testdata" to "main" for standalone compilation
 	src = bytes.Replace(src, []byte("package testdata"), []byte("package main"), 1)
-	err = os.WriteFile(filepath.Join(dir, "weather.go"), src, 0644)
+	err = os.WriteFile(filepath.Join(dir, "weather.go"), src, 0o644)
 	require.NoError(t, err)
 
 	// Generate .gen.go into temp dir with package "main"
@@ -86,7 +86,7 @@ func TestEmit_Compiles(t *testing.T) {
 	require.NoError(t, err, "go mod tidy: %s", out)
 
 	// Write a stub main so go build works with package main
-	err = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\nfunc main() {}\n"), 0644)
+	err = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644)
 	require.NoError(t, err)
 
 	// go build from within the temp dir (uses local go.mod)
@@ -106,7 +106,7 @@ func TestEmit_Behavior(t *testing.T) {
 	src, err := os.ReadFile("testdata/weather.go")
 	require.NoError(t, err)
 	src = bytes.Replace(src, []byte("package testdata"), []byte("package main"), 1)
-	err = os.WriteFile(filepath.Join(dir, "weather.go"), src, 0644)
+	err = os.WriteFile(filepath.Join(dir, "weather.go"), src, 0o644)
 	require.NoError(t, err)
 
 	// Generate .gen.go
@@ -202,7 +202,7 @@ func TestHandler_Execute(t *testing.T) {
     }
 }
 `
-	err = os.WriteFile(filepath.Join(dir, "mock_test.go"), []byte(testSrc), 0644)
+	err = os.WriteFile(filepath.Join(dir, "mock_test.go"), []byte(testSrc), 0o644)
 	require.NoError(t, err)
 
 	// Initialize go module in temp dir

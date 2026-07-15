@@ -65,11 +65,11 @@ Style preferences:
 ## Commands
 
 ```bash
-make lint       # Run linter with auto-fix
-make test       # Lint + run all tests
-make test-only  # Run tests without linting
-make test-unit  # Run unit tests only (skip integration)
-make build      # Verify compilation
+just lint       # Run linter with auto-fix
+just test       # Lint + run all tests
+just test-only  # Run tests without linting
+just test-unit  # Run unit tests only (skip integration)
+just build      # Verify compilation
 ```
 
 ## 开发闭环

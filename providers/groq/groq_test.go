@@ -12,6 +12,7 @@ import (
 	"github.com/code-koan/llm-sdk-go/errors"
 	"github.com/code-koan/llm-sdk-go/internal/testutil"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func TestNew(t *testing.T) {
@@ -117,7 +118,7 @@ func TestIntegrationCompletion(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, resp.ID)
-	require.Equal(t, objectChatCompletion, resp.Object)
+	require.Equal(t, openai.ObjectChatCompletion, resp.Object)
 	require.Len(t, resp.Choices, 1)
 	require.NotEmpty(t, resp.Choices[0].Message.Content)
 	require.Equal(t, providers.RoleAssistant, resp.Choices[0].Message.Role)
@@ -171,7 +172,7 @@ func TestIntegrationCompletionStream(t *testing.T) {
 
 	for chunk := range chunks {
 		chunkCount++
-		require.Equal(t, objectChatCompletionChunk, chunk.Object)
+		require.Equal(t, openai.ObjectChatCompletionChunk, chunk.Object)
 		if len(chunk.Choices) > 0 {
 			content.WriteString(chunk.Choices[0].Delta.Content)
 		}
@@ -198,7 +199,7 @@ func TestIntegrationListModels(t *testing.T) {
 	resp, err := provider.ListModels(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, objectList, resp.Object)
+	require.Equal(t, openai.ObjectList, resp.Object)
 	require.NotEmpty(t, resp.Data)
 }
 

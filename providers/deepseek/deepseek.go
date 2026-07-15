@@ -9,7 +9,6 @@ import (
 	"slices"
 
 	oaisdk "github.com/openai/openai-go"
-	"github.com/openai/openai-go/packages/param"
 
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/providers"
@@ -23,19 +22,6 @@ const (
 	providerName   = "deepseek"
 )
 
-// Object type constants for API responses.
-const (
-	objectChatCompletion      = "chat.completion"
-	objectChatCompletionChunk = "chat.completion.chunk"
-	objectList                = "list"
-)
-
-// Response format types.
-const (
-	responseFormatJSONObject = "json_object"
-	responseFormatJSONSchema = "json_schema"
-)
-
 // Ensure Provider implements the required interfaces.
 var (
 	_ providers.CapabilityProvider = (*Provider)(nil)
@@ -45,14 +31,14 @@ var (
 )
 
 // Provider implements the providers.Provider interface for DeepSeek.
-// It embeds openai.CompatibleProvider since DeepSeek exposes an OpenAI-compatible API.
+// It embeds openai.Adapter since DeepSeek exposes an OpenAI-compatible API.
 type Provider struct {
-	*openai.CompatibleProvider
+	*openai.Adapter
 }
 
 // New creates a new DeepSeek provider.
 func New(opts ...config.Option) (*Provider, error) {
-	base, err := openai.NewCompatible(openai.CompatibleConfig{
+	base, err := openai.NewAdapter(openai.AdapterConfig{
 		APIKeyEnvVar:                   envAPIKey,
 		BaseURLEnvVar:                  "",
 		Capabilities:                   capabilities(),
@@ -66,12 +52,12 @@ func New(opts ...config.Option) (*Provider, error) {
 		return nil, err
 	}
 
-	return &Provider{CompatibleProvider: base}, nil
+	return &Provider{Adapter: base}, nil
 }
 
 // NewChatModel creates a ChatModel configured with the given capabilities.
 func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
-	return openai.NewChatModelFromCompatible(openai.CompatibleConfig{
+	return openai.NewChatModelFromAdapter(openai.AdapterConfig{
 		APIKeyEnvVar:                   envAPIKey,
 		BaseURLEnvVar:                  "",
 		Capabilities:                   capabilities(),
@@ -90,7 +76,7 @@ func (p *Provider) Completion(
 	params providers.CompletionParams,
 ) (*providers.ChatCompletion, error) {
 	params = preprocessParams(params)
-	return p.CompatibleProvider.Completion(ctx, params)
+	return p.Adapter.Completion(ctx, params)
 }
 
 // CompletionStream performs a streaming chat completion request.
@@ -100,7 +86,7 @@ func (p *Provider) CompletionStream(
 	params providers.CompletionParams,
 ) (<-chan providers.ChatCompletionChunk, <-chan error) {
 	params = preprocessParams(params)
-	return p.CompatibleProvider.CompletionStream(ctx, params)
+	return p.Adapter.CompletionStream(ctx, params)
 }
 
 // capabilities returns the capabilities for the DeepSeek provider.
@@ -135,7 +121,7 @@ func preprocessParams(params providers.CompletionParams) providers.CompletionPar
 		return params
 	}
 
-	if params.ResponseFormat.Type != responseFormatJSONSchema {
+	if params.ResponseFormat.Type != openai.ResponseFormatJSONSchema {
 		return params
 	}
 
@@ -170,7 +156,7 @@ func preprocessParams(params providers.CompletionParams) providers.CompletionPar
 		ToolChoice:        params.ToolChoice,
 		ParallelToolCalls: params.ParallelToolCalls,
 		ResponseFormat: &providers.ResponseFormat{
-			Type: responseFormatJSONObject,
+			Type: openai.ResponseFormatJSONObject,
 		},
 		ReasoningEffort: params.ReasoningEffort,
 		Seed:            params.Seed,
@@ -187,13 +173,7 @@ func preprocessParams(params providers.CompletionParams) providers.CompletionPar
 // If both are set, MaxCompletionTokens takes precedence over MaxTokens.
 // See: https://api-docs.deepseek.com/api/create-chat-completion
 func transformRequest(req *oaisdk.ChatCompletionNewParams) {
-	if req.MaxCompletionTokens.Valid() {
-		// Set max_tokens using max_completion_tokens value.
-		req.MaxTokens = oaisdk.Int(req.MaxCompletionTokens.Value)
-	}
-
-	// Clear unsupported fields from the request.
-	req.MaxCompletionTokens = param.Opt[int64]{}
+	openai.SwapMaxTokens(req)
 }
 
 // preprocessMessagesForJSONSchema injects the JSON schema into the last user message.

@@ -91,7 +91,7 @@ func TestParseService_NoServiceAnnotation(t *testing.T) {
 
 type Foo struct{}
 `
-	err := os.WriteFile(tmpFile, []byte(src), 0644)
+	err := os.WriteFile(tmpFile, []byte(src), 0o644)
 	require.NoError(t, err)
 
 	_, err = ParseService(tmpFile)

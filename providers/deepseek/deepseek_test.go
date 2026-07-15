@@ -12,6 +12,7 @@ import (
 	"github.com/code-koan/llm-sdk-go/errors"
 	"github.com/code-koan/llm-sdk-go/internal/testutil"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func TestNew(t *testing.T) {
@@ -108,13 +109,13 @@ func TestPreprocessParams(t *testing.T) {
 			Model:    "deepseek-chat",
 			Messages: testutil.SimpleMessages(),
 			ResponseFormat: &providers.ResponseFormat{
-				Type: responseFormatJSONObject,
+				Type: openai.ResponseFormatJSONObject,
 			},
 		}
 
 		result := preprocessParams(params)
 
-		require.Equal(t, responseFormatJSONObject, result.ResponseFormat.Type)
+		require.Equal(t, openai.ResponseFormatJSONObject, result.ResponseFormat.Type)
 		require.Equal(t, params.Messages, result.Messages)
 	})
 
@@ -127,7 +128,7 @@ func TestPreprocessParams(t *testing.T) {
 				{Role: providers.RoleUser, Content: "What is 2+2?"},
 			},
 			ResponseFormat: &providers.ResponseFormat{
-				Type: responseFormatJSONSchema,
+				Type: openai.ResponseFormatJSONSchema,
 				JSONSchema: &providers.JSONSchema{
 					Name: "math_response",
 					Schema: map[string]any{
@@ -145,7 +146,7 @@ func TestPreprocessParams(t *testing.T) {
 		result := preprocessParams(params)
 
 		// Should be converted to json_object.
-		require.Equal(t, responseFormatJSONObject, result.ResponseFormat.Type)
+		require.Equal(t, openai.ResponseFormatJSONObject, result.ResponseFormat.Type)
 		require.Nil(t, result.ResponseFormat.JSONSchema)
 
 		// Message should contain the schema.
@@ -169,7 +170,7 @@ func TestPreprocessParams(t *testing.T) {
 			Temperature: &temp,
 			MaxTokens:   &maxTokens,
 			ResponseFormat: &providers.ResponseFormat{
-				Type: responseFormatJSONSchema,
+				Type: openai.ResponseFormatJSONSchema,
 				JSONSchema: &providers.JSONSchema{
 					Name:   "test",
 					Schema: map[string]any{"type": "object"},
@@ -193,7 +194,7 @@ func TestPreprocessParams(t *testing.T) {
 				{Role: providers.RoleSystem, Content: "You are helpful."},
 			},
 			ResponseFormat: &providers.ResponseFormat{
-				Type: responseFormatJSONSchema,
+				Type: openai.ResponseFormatJSONSchema,
 				JSONSchema: &providers.JSONSchema{
 					Name:   "test",
 					Schema: map[string]any{"type": "object"},
@@ -204,7 +205,7 @@ func TestPreprocessParams(t *testing.T) {
 		result := preprocessParams(params)
 
 		// Should return original params unchanged since injection failed.
-		require.Equal(t, responseFormatJSONSchema, result.ResponseFormat.Type)
+		require.Equal(t, openai.ResponseFormatJSONSchema, result.ResponseFormat.Type)
 		require.NotNil(t, result.ResponseFormat.JSONSchema)
 	})
 
@@ -223,7 +224,7 @@ func TestPreprocessParams(t *testing.T) {
 				},
 			},
 			ResponseFormat: &providers.ResponseFormat{
-				Type: responseFormatJSONSchema,
+				Type: openai.ResponseFormatJSONSchema,
 				JSONSchema: &providers.JSONSchema{
 					Name:   "test",
 					Schema: map[string]any{"type": "object"},
@@ -234,7 +235,7 @@ func TestPreprocessParams(t *testing.T) {
 		result := preprocessParams(params)
 
 		// Should return original params unchanged since multimodal content can't be modified.
-		require.Equal(t, responseFormatJSONSchema, result.ResponseFormat.Type)
+		require.Equal(t, openai.ResponseFormatJSONSchema, result.ResponseFormat.Type)
 		require.NotNil(t, result.ResponseFormat.JSONSchema)
 	})
 }
@@ -449,7 +450,7 @@ func TestIntegrationCompletion(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, resp.ID)
-	require.Equal(t, objectChatCompletion, resp.Object)
+	require.Equal(t, openai.ObjectChatCompletion, resp.Object)
 	require.Len(t, resp.Choices, 1)
 	require.NotEmpty(t, resp.Choices[0].Message.Content)
 	require.Equal(t, providers.RoleAssistant, resp.Choices[0].Message.Role)
@@ -503,7 +504,7 @@ func TestIntegrationCompletionStream(t *testing.T) {
 
 	for chunk := range chunks {
 		chunkCount++
-		require.Equal(t, objectChatCompletionChunk, chunk.Object)
+		require.Equal(t, openai.ObjectChatCompletionChunk, chunk.Object)
 		if len(chunk.Choices) > 0 {
 			content.WriteString(chunk.Choices[0].Delta.Content)
 		}
@@ -530,7 +531,7 @@ func TestIntegrationListModels(t *testing.T) {
 	resp, err := provider.ListModels(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, objectList, resp.Object)
+	require.Equal(t, openai.ObjectList, resp.Object)
 	require.NotEmpty(t, resp.Data)
 }
 
@@ -579,7 +580,7 @@ func TestIntegrationJSONSchema(t *testing.T) {
 			{Role: providers.RoleUser, Content: "What is 2+2? Give the answer as an integer."},
 		},
 		ResponseFormat: &providers.ResponseFormat{
-			Type: responseFormatJSONSchema,
+			Type: openai.ResponseFormatJSONSchema,
 			JSONSchema: &providers.JSONSchema{
 				Name:        "math_response",
 				Description: "A mathematical response",

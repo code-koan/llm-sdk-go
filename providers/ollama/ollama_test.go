@@ -13,8 +13,10 @@ import (
 
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/internal/generateid"
 	"github.com/code-koan/llm-sdk-go/internal/testutil"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 const testOllamaAvailabilityTimeout = 5 * time.Second
@@ -406,7 +408,7 @@ func TestStreamStateChunk(t *testing.T) {
 	chunk := state.chunk()
 
 	require.Equal(t, "test-id", chunk.ID)
-	require.Equal(t, objectChatCompletionChunk, chunk.Object)
+	require.Equal(t, openai.ObjectChatCompletionChunk, chunk.Object)
 	require.Equal(t, int64(12345), chunk.Created)
 	require.Equal(t, "test-model", chunk.Model)
 	require.Len(t, chunk.Choices, 1)
@@ -429,7 +431,7 @@ func TestStreamStateHandleChunk(t *testing.T) {
 
 		chunk := state.handleChunk(resp)
 
-		require.Equal(t, objectChatCompletionChunk, chunk.Object)
+		require.Equal(t, openai.ObjectChatCompletionChunk, chunk.Object)
 		require.Equal(t, "llama3.2", chunk.Model)
 		require.Len(t, chunk.Choices, 1)
 		require.Equal(t, "Hello ", chunk.Choices[0].Delta.Content)
@@ -614,8 +616,8 @@ func TestConvertError(t *testing.T) {
 func TestGenerateID(t *testing.T) {
 	t.Parallel()
 
-	id1 := generateID()
-	id2 := generateID()
+	id1 := generateid.New("chatcmpl")
+	id2 := generateid.New("chatcmpl")
 
 	require.NotEmpty(t, id1)
 	require.NotEmpty(t, id2)
@@ -646,7 +648,7 @@ func TestIntegrationCompletion(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, resp.ID)
-	require.Equal(t, objectChatCompletion, resp.Object)
+	require.Equal(t, openai.ObjectChatCompletion, resp.Object)
 	require.Len(t, resp.Choices, 1)
 	require.NotEmpty(t, resp.Choices[0].Message.Content)
 	require.Equal(t, providers.RoleAssistant, resp.Choices[0].Message.Role)
@@ -703,7 +705,7 @@ func TestIntegrationCompletionStream(t *testing.T) {
 
 	for chunk := range chunks {
 		chunkCount++
-		require.Equal(t, objectChatCompletionChunk, chunk.Object)
+		require.Equal(t, openai.ObjectChatCompletionChunk, chunk.Object)
 		if len(chunk.Choices) > 0 {
 			content.WriteString(chunk.Choices[0].Delta.Content)
 		}
@@ -727,7 +729,7 @@ func TestIntegrationListModels(t *testing.T) {
 	resp, err := provider.ListModels(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, objectList, resp.Object)
+	require.Equal(t, openai.ObjectList, resp.Object)
 	// Note: Models list could be empty if no models are pulled.
 }
 
@@ -841,7 +843,7 @@ func TestIntegrationEmbedding(t *testing.T) {
 	resp, err := provider.Embedding(ctx, params)
 	require.NoError(t, err)
 
-	require.Equal(t, objectList, resp.Object)
+	require.Equal(t, openai.ObjectList, resp.Object)
 	require.NotEmpty(t, resp.Data)
 	require.NotEmpty(t, resp.Data[0].Embedding)
 }

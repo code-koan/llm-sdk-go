@@ -3,9 +3,7 @@ package gemini
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
@@ -16,7 +14,9 @@ import (
 
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/internal/generateid"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Provider configuration constants.
@@ -44,15 +44,6 @@ const (
 const (
 	roleModel = "model"
 	roleUser  = "user"
-)
-
-// Object type constants (Gemini doesn't provide these; we set them ourselves).
-const (
-	objectChatCompletion      = "chat.completion"
-	objectChatCompletionChunk = "chat.completion.chunk"
-	objectEmbedding           = "embedding"
-	objectList                = "list"
-	objectModel               = "model"
 )
 
 // Response format and tool type constants.
@@ -243,14 +234,7 @@ func (p *Provider) CompletionStream(
 		)
 
 		contents, cfg := p.convertParams(params)
-		state, err := newStreamState(params.Model)
-		if err != nil {
-			select {
-			case errs <- err:
-			case <-ctx.Done():
-			}
-			return
-		}
+		state := newStreamState(params.Model)
 
 		for resp, err := range p.client.Models.GenerateContentStream(ctx, params.Model, contents, cfg) {
 			if err != nil {
@@ -374,14 +358,14 @@ func (p *Provider) Embedding(
 			values[j] = float64(v)
 		}
 		data = append(data, providers.EmbeddingData{
-			Object:    objectEmbedding,
+			Object:    openai.ObjectEmbedding,
 			Embedding: values,
 			Index:     i,
 		})
 	}
 
 	result := &providers.EmbeddingResponse{
-		Object: objectList,
+		Object: openai.ObjectList,
 		Data:   data,
 		Model:  params.Model,
 	}
@@ -407,7 +391,7 @@ func (p *Provider) ListModels(ctx context.Context) (*providers.ModelsResponse, e
 		for _, m := range page.Items {
 			models = append(models, providers.Model{
 				ID:      m.Name,
-				Object:  objectModel,
+				Object:  openai.ObjectModel,
 				OwnedBy: "google",
 			})
 		}
@@ -426,7 +410,7 @@ func (p *Provider) ListModels(ctx context.Context) (*providers.ModelsResponse, e
 	}
 
 	return &providers.ModelsResponse{
-		Object: objectList,
+		Object: openai.ObjectList,
 		Data:   models,
 	}, nil
 }
@@ -482,22 +466,18 @@ func (p *Provider) convertParams(params providers.CompletionParams) ([]*genai.Co
 }
 
 // newStreamState creates a new stream state.
-func newStreamState(model string) (*streamState, error) {
-	id, err := generateID(idPrefixCompletion)
-	if err != nil {
-		return nil, err
-	}
+func newStreamState(model string) *streamState {
 	return &streamState{
-		messageID: id,
+		messageID: generateid.New(idPrefixCompletion),
 		model:     model,
-	}, nil
+	}
 }
 
 // chunk creates a ChatCompletionChunk with the given delta.
 func (s *streamState) chunk(delta providers.ChunkDelta) providers.ChatCompletionChunk {
 	return providers.ChatCompletionChunk{
 		ID:     s.messageID,
-		Object: objectChatCompletionChunk,
+		Object: openai.ObjectChatCompletionChunk,
 		Model:  s.model,
 		Choices: []providers.ChunkChoice{{
 			Index: 0,
@@ -699,10 +679,7 @@ func convertFunctionCallToToolCall(fc *genai.FunctionCall) (providers.ToolCall, 
 		}
 	}
 
-	id, err := generateID(idPrefixToolCall)
-	if err != nil {
-		return providers.ToolCall{}, err
-	}
+	id := generateid.New(idPrefixToolCall)
 
 	return providers.ToolCall{
 		ID:   id,
@@ -849,14 +826,11 @@ func convertResponse(resp *genai.GenerateContentResponse, model string) (*provid
 		Reasoning: reasoning,
 	}
 
-	id, err := generateID(idPrefixCompletion)
-	if err != nil {
-		return nil, err
-	}
+	id := generateid.New(idPrefixCompletion)
 
 	completion := &providers.ChatCompletion{
 		ID:      id,
-		Object:  objectChatCompletion,
+		Object:  openai.ObjectChatCompletion,
 		Created: time.Now().Unix(),
 		Model:   model,
 		Choices: []providers.Choice{{
@@ -981,15 +955,6 @@ func convertUserMessage(msg providers.Message) *genai.Content {
 	}
 
 	return genai.NewContentFromParts(parts, roleUser)
-}
-
-// generateID generates a random ID with the given prefix.
-func generateID(prefix string) (string, error) {
-	b := make([]byte, 12)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generating ID: %w", err)
-	}
-	return prefix + hex.EncodeToString(b), nil
 }
 
 // setProviderExtra safely sets a key in a ToolCall's provider-specific Extra data.

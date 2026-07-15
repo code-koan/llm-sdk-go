@@ -1,6 +1,6 @@
 ---
 name: reflecting
-description: 会话反思 — 复盘 + 经验沉淀 + 文档更新 + 基础设施增强。触发词：复盘/反思/总结/回顾/好了/done/完成/最后/收尾/review完了/review发现/HIGH/BLOCK/agent失败/编译失败/测试失败/修好了/合入/PR创建完了/闭环完成。
+description: 会话反思 — 复盘 + 经验沉淀 + 文档更新 + 基础设施增强。触发词：复盘/反思/总结/回顾/好了/done/完成/最后/收尾/review完了/review发现/HIGH/BLOCK/agent失败/编译失败/测试失败/修好了/合入/PR创建完了/闭环完成/为什么没用/为什么不先/应该先。
 ---
 # 会话反思
 

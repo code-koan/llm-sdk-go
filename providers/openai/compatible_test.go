@@ -18,13 +18,13 @@ import (
 	"github.com/code-koan/llm-sdk-go/providers"
 )
 
-func TestNewCompatible(t *testing.T) {
+func TestNewAdapter(t *testing.T) {
 	// Note: Not using t.Parallel() here because child test uses t.Setenv.
 
 	t.Run("creates provider with valid config", func(t *testing.T) {
 		t.Parallel()
 
-		baseCfg := CompatibleConfig{
+		baseCfg := AdapterConfig{
 			Name:           "test-provider",
 			DefaultBaseURL: "http://localhost:8080/v1",
 			DefaultAPIKey:  "test-key",
@@ -34,7 +34,7 @@ func TestNewCompatible(t *testing.T) {
 			},
 		}
 
-		provider, err := NewCompatible(baseCfg)
+		provider, err := NewAdapter(baseCfg)
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 		require.Equal(t, "test-provider", provider.Name())
@@ -43,11 +43,11 @@ func TestNewCompatible(t *testing.T) {
 	t.Run("returns error when name is missing", func(t *testing.T) {
 		t.Parallel()
 
-		baseCfg := CompatibleConfig{
+		baseCfg := AdapterConfig{
 			DefaultBaseURL: "http://localhost:8080/v1",
 		}
 
-		provider, err := NewCompatible(baseCfg)
+		provider, err := NewAdapter(baseCfg)
 		require.Error(t, err)
 		require.Nil(t, provider)
 		require.Contains(t, err.Error(), "provider name is required")
@@ -56,13 +56,13 @@ func TestNewCompatible(t *testing.T) {
 	t.Run("returns error when API key required but missing", func(t *testing.T) {
 		t.Parallel()
 
-		baseCfg := CompatibleConfig{
+		baseCfg := AdapterConfig{
 			Name:          "test-provider",
 			APIKeyEnvVar:  "TEST_API_KEY",
 			RequireAPIKey: true,
 		}
 
-		provider, err := NewCompatible(baseCfg)
+		provider, err := NewAdapter(baseCfg)
 		require.Error(t, err)
 		require.Nil(t, provider)
 
@@ -73,13 +73,13 @@ func TestNewCompatible(t *testing.T) {
 	t.Run("uses default API key when not required", func(t *testing.T) {
 		t.Parallel()
 
-		baseCfg := CompatibleConfig{
+		baseCfg := AdapterConfig{
 			Name:          "test-provider",
 			DefaultAPIKey: "default-key",
 			RequireAPIKey: false,
 		}
 
-		provider, err := NewCompatible(baseCfg)
+		provider, err := NewAdapter(baseCfg)
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 	})
@@ -87,13 +87,13 @@ func TestNewCompatible(t *testing.T) {
 	t.Run("uses config base URL over default", func(t *testing.T) {
 		t.Parallel()
 
-		baseCfg := CompatibleConfig{
+		baseCfg := AdapterConfig{
 			Name:           "test-provider",
 			DefaultBaseURL: "http://default:8080/v1",
 			DefaultAPIKey:  "test-key",
 		}
 
-		provider, err := NewCompatible(baseCfg, config.WithBaseURL("http://custom:9090/v1"))
+		provider, err := NewAdapter(baseCfg, config.WithBaseURL("http://custom:9090/v1"))
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 	})
@@ -101,20 +101,20 @@ func TestNewCompatible(t *testing.T) {
 	t.Run("uses environment variable for base URL", func(t *testing.T) {
 		t.Setenv("TEST_BASE_URL", "http://env:8080/v1")
 
-		baseCfg := CompatibleConfig{
+		baseCfg := AdapterConfig{
 			Name:           "test-provider",
 			BaseURLEnvVar:  "TEST_BASE_URL",
 			DefaultBaseURL: "http://default:8080/v1",
 			DefaultAPIKey:  "test-key",
 		}
 
-		provider, err := NewCompatible(baseCfg)
+		provider, err := NewAdapter(baseCfg)
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 	})
 }
 
-func TestCompatibleProviderCapabilities(t *testing.T) {
+func TestAdapterCapabilities(t *testing.T) {
 	t.Parallel()
 
 	expectedCaps := providers.Capabilities{
@@ -123,12 +123,12 @@ func TestCompatibleProviderCapabilities(t *testing.T) {
 		Embedding:           true,
 	}
 
-	baseCfg := CompatibleConfig{
+	baseCfg := AdapterConfig{
 		Name:         "test-provider",
 		Capabilities: expectedCaps,
 	}
 
-	provider, err := NewCompatible(baseCfg)
+	provider, err := NewAdapter(baseCfg)
 	require.NoError(t, err)
 
 	caps := provider.Capabilities()
@@ -206,7 +206,7 @@ func TestConvertResponseFormat(t *testing.T) {
 	t.Run("converts json_object format", func(t *testing.T) {
 		t.Parallel()
 
-		format := &providers.ResponseFormat{Type: responseFormatJSONObject}
+		format := &providers.ResponseFormat{Type: ResponseFormatJSONObject}
 		result := convertResponseFormat(format)
 		require.NotNil(t, result.OfJSONObject)
 	})
@@ -216,7 +216,7 @@ func TestConvertResponseFormat(t *testing.T) {
 
 		strict := true
 		format := &providers.ResponseFormat{
-			Type: responseFormatJSONSchema,
+			Type: ResponseFormatJSONSchema,
 			JSONSchema: &providers.JSONSchema{
 				Name:        "test_schema",
 				Description: "Test schema",
@@ -295,7 +295,7 @@ func TestConvertEmbeddingParams(t *testing.T) {
 	})
 }
 
-func TestCompatibleHeaders(t *testing.T) {
+func TestAdapterHeaders(t *testing.T) {
 	t.Parallel()
 
 	// Fake server that captures request headers.
@@ -321,7 +321,7 @@ func TestCompatibleHeaders(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	baseCfg := CompatibleConfig{
+	baseCfg := AdapterConfig{
 		Name:           "test-provider",
 		DefaultBaseURL: srv.URL,
 		DefaultAPIKey:  "test-key",
@@ -330,7 +330,7 @@ func TestCompatibleHeaders(t *testing.T) {
 		},
 	}
 
-	provider, err := NewCompatible(baseCfg)
+	provider, err := NewAdapter(baseCfg)
 	require.NoError(t, err)
 
 	params := providers.CompletionParams{
@@ -345,7 +345,7 @@ func TestCompatibleHeaders(t *testing.T) {
 	require.Equal(t, "custom-value", capturedHeaders["X-Custom-Header"])
 }
 
-func TestCompatibleExtraConflict(t *testing.T) {
+func TestAdapterExtraConflict(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -370,7 +370,7 @@ func TestCompatibleExtraConflict(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			baseCfg := CompatibleConfig{
+			baseCfg := AdapterConfig{
 				Name:           "test-provider",
 				DefaultBaseURL: "http://localhost:9999",
 				DefaultAPIKey:  "test-key",
@@ -379,7 +379,7 @@ func TestCompatibleExtraConflict(t *testing.T) {
 				},
 			}
 
-			provider, err := NewCompatible(baseCfg)
+			provider, err := NewAdapter(baseCfg)
 			require.NoError(t, err)
 
 			params := providers.CompletionParams{
@@ -397,7 +397,7 @@ func TestCompatibleExtraConflict(t *testing.T) {
 	}
 }
 
-func TestCompatibleOverrideBody(t *testing.T) {
+func TestAdapterOverrideBody(t *testing.T) {
 	t.Parallel()
 
 	var capturedBody map[string]any
@@ -420,7 +420,7 @@ func TestCompatibleOverrideBody(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	baseCfg := CompatibleConfig{
+	baseCfg := AdapterConfig{
 		Name:           "test-provider",
 		DefaultBaseURL: srv.URL,
 		DefaultAPIKey:  "test-key",
@@ -429,7 +429,7 @@ func TestCompatibleOverrideBody(t *testing.T) {
 		},
 	}
 
-	provider, err := NewCompatible(baseCfg)
+	provider, err := NewAdapter(baseCfg)
 	require.NoError(t, err)
 
 	params := providers.CompletionParams{
@@ -445,7 +445,7 @@ func TestCompatibleOverrideBody(t *testing.T) {
 	require.Equal(t, "overridden-model", capturedBody["model"])
 }
 
-func TestCompatibleDefaultUser(t *testing.T) {
+func TestAdapterDefaultUser(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -500,14 +500,14 @@ func TestCompatibleDefaultUser(t *testing.T) {
 				opts = append(opts, config.WithUserID(tc.defaultUser))
 			}
 
-			baseCfg := CompatibleConfig{
+			baseCfg := AdapterConfig{
 				Name: "test-provider",
 				Capabilities: providers.Capabilities{
 					Completion: true,
 				},
 			}
 
-			provider, err := NewCompatible(baseCfg, opts...)
+			provider, err := NewAdapter(baseCfg, opts...)
 			require.NoError(t, err)
 
 			params := providers.CompletionParams{
@@ -531,7 +531,7 @@ func TestConvertResponseCachedTokens(t *testing.T) {
 
 		resp := &openai.ChatCompletion{
 			ID:      "test-id",
-			Object:  objectChatCompletion,
+			Object:  ObjectChatCompletion,
 			Created: 1700000000,
 			Model:   "test-model",
 			Choices: []openai.ChatCompletionChoice{
@@ -567,7 +567,7 @@ func TestConvertResponseCachedTokens(t *testing.T) {
 
 		resp := &openai.ChatCompletion{
 			ID:      "test-id",
-			Object:  objectChatCompletion,
+			Object:  ObjectChatCompletion,
 			Created: 1700000000,
 			Model:   "test-model",
 			Choices: []openai.ChatCompletionChoice{
@@ -600,7 +600,7 @@ func TestConvertResponseCachedTokens(t *testing.T) {
 
 		resp := &openai.ChatCompletion{
 			ID:      "test-id",
-			Object:  objectChatCompletion,
+			Object:  ObjectChatCompletion,
 			Created: 1700000000,
 			Model:   "test-model",
 			Choices: []openai.ChatCompletionChoice{
@@ -726,13 +726,13 @@ func TestStreamingContextCancellation(t *testing.T) {
 	t.Run("respects context cancellation", func(t *testing.T) {
 		t.Parallel()
 
-		baseCfg := CompatibleConfig{
+		baseCfg := AdapterConfig{
 			Name:           "test-provider",
 			DefaultBaseURL: "http://localhost:9999/v1", // Non-existent server.
 			DefaultAPIKey:  "test-key",
 		}
 
-		provider, err := NewCompatible(baseCfg)
+		provider, err := NewAdapter(baseCfg)
 		require.NoError(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())

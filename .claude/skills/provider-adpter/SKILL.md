@@ -109,8 +109,8 @@ Phase 0 存档的官方示例 → 写测试（红，失败）→ 最小实现（
 ## 开发闭环验证
 
 □ gofmt -w <changed_files>
-□ make build
-□ make test-only
-□ make lint
+□ just build
+□ just test-only
+□ just lint
 □ 文档更新已完成
 □ git diff --check

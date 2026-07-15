@@ -3,8 +3,6 @@ package ollama
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
@@ -16,7 +14,9 @@ import (
 
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/internal/generateid"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 // Provider configuration constants.
@@ -60,15 +60,6 @@ const (
 	responseFormatSchema = "json_schema"
 	toolCallIDFormat     = "call_%d"
 	toolTypeFunction     = "function"
-)
-
-// Object type constants.
-const (
-	objectChatCompletion      = "chat.completion"
-	objectChatCompletionChunk = "chat.completion.chunk"
-	objectEmbedding           = "embedding"
-	objectList                = "list"
-	objectModel               = "model"
 )
 
 // Thinking tag constants.
@@ -412,7 +403,7 @@ func (p *Provider) convertParams(params providers.CompletionParams) *api.ChatReq
 // newStreamState creates a new stream state.
 func newStreamState() *streamState {
 	return &streamState{
-		id:      generateID(),
+		id:      generateid.New("chatcmpl"),
 		created: time.Now().Unix(),
 	}
 }
@@ -421,7 +412,7 @@ func newStreamState() *streamState {
 func (s *streamState) chunk() providers.ChatCompletionChunk {
 	return providers.ChatCompletionChunk{
 		ID:      s.id,
-		Object:  objectChatCompletionChunk,
+		Object:  openai.ObjectChatCompletionChunk,
 		Created: s.created,
 		Model:   s.model,
 		Choices: []providers.ChunkChoice{{Index: 0}},
@@ -544,14 +535,14 @@ func convertEmbeddingResponse(resp *api.EmbedResponse, model string) *providers.
 		}
 
 		data = append(data, providers.EmbeddingData{
-			Object:    objectEmbedding,
+			Object:    openai.ObjectEmbedding,
 			Embedding: floats,
 			Index:     i,
 		})
 	}
 
 	return &providers.EmbeddingResponse{
-		Object: objectList,
+		Object: openai.ObjectList,
 		Data:   data,
 		Model:  model,
 		Usage: &providers.EmbeddingUsage{
@@ -600,14 +591,14 @@ func convertModelsResponse(resp *api.ListResponse) *providers.ModelsResponse {
 	for _, m := range resp.Models {
 		models = append(models, providers.Model{
 			ID:      m.Model,
-			Object:  objectModel,
+			Object:  openai.ObjectModel,
 			Created: m.ModifiedAt.Unix(),
 			OwnedBy: providerName,
 		})
 	}
 
 	return &providers.ModelsResponse{
-		Object: objectList,
+		Object: openai.ObjectList,
 		Data:   models,
 	}
 }
@@ -633,8 +624,8 @@ func convertResponse(resp *api.ChatResponse) *providers.ChatCompletion {
 	}
 
 	return &providers.ChatCompletion{
-		ID:      generateID(),
-		Object:  objectChatCompletion,
+		ID:      generateid.New("chatcmpl"),
+		Object:  openai.ObjectChatCompletion,
 		Created: resp.CreatedAt.Unix(),
 		Model:   resp.Model,
 		Choices: []providers.Choice{{
@@ -828,9 +819,4 @@ func extractThinking(content, thinking string) (string, *providers.Reasoning) {
 	return cleanContent, reasoning
 }
 
-// generateID generates a unique ID for responses using crypto/rand.
-func generateID() string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("chatcmpl-%d-%s", time.Now().UnixNano(), hex.EncodeToString(b))
-}
+// ID generation uses internal/generateid.New("chatcmpl").

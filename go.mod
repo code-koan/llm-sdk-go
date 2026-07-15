@@ -6,6 +6,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.26.0
 	github.com/ollama/ollama v0.17.6
 	github.com/openai/openai-go v1.12.0
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tiktoken-go/tokenizer v0.8.0
 	github.com/volcengine/volcengine-go-sdk v1.2.37
@@ -33,7 +34,6 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
-	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect

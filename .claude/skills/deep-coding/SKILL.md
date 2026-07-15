@@ -42,9 +42,25 @@ llm-sdk-go 的核心目标只有三个：
 ```
 □ git status --short          → 确认已有改动归属，避免覆盖用户工作
 □ git branch --show-current   → 确认当前分支与 issue / 任务一致
-□ make build 或 go test ./...  → 必要时确认基线是否可用
+□ just build 或 go test ./...  → 必要时确认基线是否可用
 □ ls /tmp/llm-sdk-session-*   → Session 任务追踪文件必须存在，否则新建
 ```
+
+### Layer 0.5：执行方式判断（Layer 0 之后、Layer 1 之前，不可跳过）
+
+**判别标准**：任务可以用一句话完整描述且无歧义 → 低认知负荷。需要「理解代码再决定怎么改」→ 高认知负荷。
+
+| 认知负荷 | 任务特征 | 执行方式 | Agent（如派发） |
+|---------|---------|---------|---------------|
+| **低** | 机械替换、批量重命名、格式统一 | **lead sed/Edit**（不派 agent） | — |
+| **高** | 设计决策、依赖分析、同级一致性、数据流理解 | lead → 方案 → 派 agent | project-implementer |
+
+**Agent 选型**（必须派发时 — 查 [.claude/_index.md](../../_index.md) agent 选型表）：
+- 代码实现 → `project-implementer`
+- 只读检索 → `Explore`
+- 代码审查 → `project-reviewer`
+
+**已验证**：Agent 面对大量重复 Edit 会走捷径（正则/批处理）→ 产生破损输出。>3 处纯文本替换 = lead sed，不派 agent。
 
 ### Layer 1：方案设计 — 标准模式
 
@@ -137,9 +153,9 @@ B8. /reflecting — 六层反思：情景学习→经验捕获→文档沉淀→
 □ spec/plan/tasks 收敛检查（speckit-converge 无差距）
 □ graphify update .（如有代码变更）
 □ gofmt -w <changed_go_files>
-□ make build
-□ make test-only
-□ make lint 或 make test
+□ just build
+□ just test-only
+□ just lint 或 just test
 □ 文档更新已完成
 □ git diff --check
 □ PR / issue 留痕已完成（如适用）

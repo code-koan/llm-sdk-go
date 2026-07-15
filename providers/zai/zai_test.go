@@ -15,6 +15,7 @@ import (
 	"github.com/code-koan/llm-sdk-go/errors"
 	"github.com/code-koan/llm-sdk-go/internal/testutil"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func TestNew(t *testing.T) {
@@ -430,7 +431,7 @@ func TestToProviderCompletion(t *testing.T) {
 		model := testutil.TestModel(providerName)
 		zaiResp := &zaiChatCompletion{
 			ID:      "chatcmpl-123",
-			Object:  objectChatCompletion,
+			Object:  openai.ObjectChatCompletion,
 			Created: 1234567890,
 			Model:   model,
 			Choices: []zaiChoice{
@@ -455,7 +456,7 @@ func TestToProviderCompletion(t *testing.T) {
 		result := zaiResp.toProviderCompletion()
 
 		require.Equal(t, "chatcmpl-123", result.ID)
-		require.Equal(t, objectChatCompletion, result.Object)
+		require.Equal(t, openai.ObjectChatCompletion, result.Object)
 		require.Equal(t, int64(1234567890), result.Created)
 		require.Equal(t, model, result.Model)
 		require.Len(t, result.Choices, 1)
@@ -471,7 +472,7 @@ func TestToProviderCompletion(t *testing.T) {
 
 		zaiResp := &zaiChatCompletion{
 			ID:      "chatcmpl-456",
-			Object:  objectChatCompletion,
+			Object:  openai.ObjectChatCompletion,
 			Created: 1234567890,
 			Model:   testutil.ReasoningModel(providerName),
 			Choices: []zaiChoice{
@@ -502,7 +503,7 @@ func TestToProviderCompletion(t *testing.T) {
 
 		zaiResp := &zaiChatCompletion{
 			ID:     "chatcmpl-789",
-			Object: objectChatCompletion,
+			Object: openai.ObjectChatCompletion,
 			Model:  testutil.TestModel(providerName),
 			Choices: []zaiChoice{
 				{
@@ -528,7 +529,7 @@ func TestToProviderCompletion(t *testing.T) {
 
 		zaiResp := &zaiChatCompletion{
 			ID:     "chatcmpl-tool",
-			Object: objectChatCompletion,
+			Object: openai.ObjectChatCompletion,
 			Model:  testutil.TestModel(providerName),
 			Choices: []zaiChoice{
 				{
@@ -571,7 +572,7 @@ func TestToProviderChunk(t *testing.T) {
 		model := testutil.TestModel(providerName)
 		zaiChunk := &zaiChatCompletionChunk{
 			ID:      "chatcmpl-stream-1",
-			Object:  objectChatCompletionChunk,
+			Object:  openai.ObjectChatCompletionChunk,
 			Created: 1234567890,
 			Model:   model,
 			Choices: []zaiChunkChoice{
@@ -590,7 +591,7 @@ func TestToProviderChunk(t *testing.T) {
 		result := zaiChunk.toProviderChunk()
 
 		require.Equal(t, "chatcmpl-stream-1", result.ID)
-		require.Equal(t, objectChatCompletionChunk, result.Object)
+		require.Equal(t, openai.ObjectChatCompletionChunk, result.Object)
 		require.Equal(t, model, result.Model)
 		require.Len(t, result.Choices, 1)
 		require.Equal(t, providers.RoleAssistant, result.Choices[0].Delta.Role)
@@ -603,7 +604,7 @@ func TestToProviderChunk(t *testing.T) {
 
 		zaiChunk := &zaiChatCompletionChunk{
 			ID:     "chatcmpl-stream-2",
-			Object: objectChatCompletionChunk,
+			Object: openai.ObjectChatCompletionChunk,
 			Model:  testutil.ReasoningModel(providerName),
 			Choices: []zaiChunkChoice{
 				{
@@ -628,7 +629,7 @@ func TestToProviderChunk(t *testing.T) {
 
 		zaiChunk := &zaiChatCompletionChunk{
 			ID:     "chatcmpl-stream-3",
-			Object: objectChatCompletionChunk,
+			Object: openai.ObjectChatCompletionChunk,
 			Model:  testutil.TestModel(providerName),
 			Choices: []zaiChunkChoice{
 				{
@@ -656,7 +657,7 @@ func TestToProviderChunk(t *testing.T) {
 
 		zaiChunk := &zaiChatCompletionChunk{
 			ID:     "chatcmpl-stream-4",
-			Object: objectChatCompletionChunk,
+			Object: openai.ObjectChatCompletionChunk,
 			Model:  testutil.TestModel(providerName),
 			Choices: []zaiChunkChoice{
 				{
@@ -721,7 +722,7 @@ func TestIntegrationCompletion(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, resp.ID)
-	require.Equal(t, objectChatCompletion, resp.Object)
+	require.Equal(t, openai.ObjectChatCompletion, resp.Object)
 	require.Len(t, resp.Choices, 1)
 	require.NotEmpty(t, resp.Choices[0].Message.Content)
 	require.Equal(t, providers.RoleAssistant, resp.Choices[0].Message.Role)
@@ -771,7 +772,7 @@ func TestIntegrationCompletionStream(t *testing.T) {
 
 	for chunk := range chunks {
 		chunkCount++
-		require.Equal(t, objectChatCompletionChunk, chunk.Object)
+		require.Equal(t, openai.ObjectChatCompletionChunk, chunk.Object)
 		if len(chunk.Choices) > 0 {
 			content.WriteString(chunk.Choices[0].Delta.Content)
 		}
@@ -796,7 +797,7 @@ func TestIntegrationListModels(t *testing.T) {
 	resp, err := provider.ListModels(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, objectList, resp.Object)
+	require.Equal(t, openai.ObjectList, resp.Object)
 	require.NotEmpty(t, resp.Data)
 }
 

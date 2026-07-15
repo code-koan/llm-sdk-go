@@ -67,6 +67,9 @@ tools: Read, Write, Edit, Bash, Grep, Glob, LSP
 ### 禁止项
 
 27. 禁止编辑 `*_gen.go`、`*.gen.go`
+28. **禁止内部再派发子 agent** — 不调用 Agent/Workflow 工具。你是叶子节点，不是编排者。
+29. **实现而非规划** — 任务首行含 `IMPLEMENTATION` 信号 → 直接编辑文件。不产出 plan/方案文档。plan 已在 lead 侧确认。
+30. **验证输出** — 完成编辑后必须跑 `go build ./... && go test -race ./...`，确认编译+测试全部通过后再回报 lead。编译失败或测试未跑 = 任务未完成。
 
 ### 变更半径自检（实现完成后必须执行）
 
