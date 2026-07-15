@@ -34,12 +34,12 @@ var (
 // Provider is a thin wrapper around the generic OpenAI-compatible provider,
 // pre-configured with llama.cpp defaults and quirks.
 type Provider struct {
-	*openai.CompatibleProvider
+	*openai.Adapter
 }
 
 // New returns a Provider that communicates with a llama.cpp server.
 func New(opts ...config.Option) (*Provider, error) {
-	base, err := openai.NewCompatible(openai.CompatibleConfig{
+	base, err := openai.NewAdapter(openai.AdapterConfig{
 		APIKeyEnvVar:   "",
 		BaseURLEnvVar:  "",
 		Capabilities:   capabilities(),
@@ -52,12 +52,12 @@ func New(opts ...config.Option) (*Provider, error) {
 		return nil, err
 	}
 
-	return &Provider{CompatibleProvider: base}, nil
+	return &Provider{Adapter: base}, nil
 }
 
 // NewChatModel creates a ChatModel configured with the given capabilities.
 func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
-	return openai.NewChatModelFromCompatible(openai.CompatibleConfig{
+	return openai.NewChatModelFromAdapter(openai.AdapterConfig{
 		APIKeyEnvVar:   "",
 		BaseURLEnvVar:  "",
 		Capabilities:   capabilities(),

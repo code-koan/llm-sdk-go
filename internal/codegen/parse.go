@@ -12,8 +12,8 @@ import (
 
 // ServiceInfo holds the parsed service metadata.
 type ServiceInfo struct {
-	Name    string       // from //tool:service annotation
-	PkgPath string       // full package import path
+	Name    string // from //tool:service annotation
+	PkgPath string // full package import path
 	Methods []MethodInfo
 }
 

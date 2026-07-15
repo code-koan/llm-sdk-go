@@ -27,14 +27,14 @@ var (
 )
 
 // Provider implements the providers.Provider interface for Llamafile.
-// It embeds openai.CompatibleProvider since Llamafile exposes an OpenAI-compatible API.
+// It embeds openai.Adapter since Llamafile exposes an OpenAI-compatible API.
 type Provider struct {
-	*openai.CompatibleProvider
+	*openai.Adapter
 }
 
 // New creates a new Llamafile provider.
 func New(opts ...config.Option) (*Provider, error) {
-	base, err := openai.NewCompatible(openai.CompatibleConfig{
+	base, err := openai.NewAdapter(openai.AdapterConfig{
 		APIKeyEnvVar:   "", // Llamafile doesn't use an API key env var.
 		BaseURLEnvVar:  envBaseURL,
 		Capabilities:   capabilities(),
@@ -47,12 +47,12 @@ func New(opts ...config.Option) (*Provider, error) {
 		return nil, err
 	}
 
-	return &Provider{CompatibleProvider: base}, nil
+	return &Provider{Adapter: base}, nil
 }
 
 // NewChatModel creates a ChatModel configured with the given capabilities.
 func NewChatModel(modelID string, modelOpts ...providers.ModelOption) (*providers.ChatModel, error) {
-	return openai.NewChatModelFromCompatible(openai.CompatibleConfig{
+	return openai.NewChatModelFromAdapter(openai.AdapterConfig{
 		APIKeyEnvVar:   "", // Llamafile doesn't use an API key env var.
 		BaseURLEnvVar:  envBaseURL,
 		Capabilities:   capabilities(),

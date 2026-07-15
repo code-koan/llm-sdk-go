@@ -16,16 +16,18 @@ description: LLM Provider 实现层 — 各厂商的 Provider 接口实现
 
 | 目录 | 说明 |
 |------|------|
-| `openai/` | OpenAI 兼容 API |
-| `anthropic/` | Anthropic Claude |
+| `anthropic/` | Anthropic Claude — 参考实现 |
+| `openai/` | OpenAI + Compatible 包装器 |
 | `deepseek/` | DeepSeek |
 | `gemini/` | Google Gemini |
 | `groq/` | Groq |
-| `ollama/` | Ollama 本地模型 |
 | `mistral/` | Mistral AI |
+| `ollama/` | Ollama 本地模型 |
 | `llamacpp/` | llama.cpp |
 | `llamafile/` | Llamafile |
+| `volcengine/` | 火山方舟 |
 | `zai/` | Z.AI |
+| `tokenizer/` | Token 估算工具 |
 
 ## 设计文档
 

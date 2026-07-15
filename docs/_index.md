@@ -20,15 +20,21 @@
 
 | 文件 | 内容 |
 |------|------|
-| `model-capabilities.md` | ChatModel + ChatBuilder 三步一体用法：能力配置 → 查询 → 链式构建 |
 | `architecture.md` | 项目架构、核心接口、Provider 实现指南 |
 | `quickstart.md` | 快速上手示例 |
-| `providers.md` | Provider 实现清单与接入指南 |
+| `providers.md` | Provider 实现清单与能力矩阵 |
 | `fallback.md` | Router 多 Provider 负载分发与容灾 |
+| `model-capabilities.md` | ChatModel + ChatBuilder 三步用法 |
+| `tokenizer.md` | Token 估算 API |
+| `tools.md` | Tool 代码生成 |
 | `api/README.md` | API 文档概述 |
 | `api/completion.md` | Completion 请求参数与响应 |
 | `api/streaming.md` | 流式响应 |
 | `api/errors.md` | 错误处理 |
-| `api/cache-and-ratelimit.md` | Cache 数据透传 & Rate Limit 机制 |
-| `tokenizer.md` | Token estimation API — tiktoken for OpenAI, heuristic for Claude/Gemini |
-| `tools.md` | Tool code generation — annotations, CLI reference, generated API |
+| `api/cache-and-ratelimit.md` | Cache + Rate Limit |
+| `api/anthropic/anthropic.md` | Anthropic Provider SDK 用法 |
+| `api/openai/openai.md` | OpenAI Provider SDK 用法 |
+| `api/volcengine/seedance.md` | 火山方舟 Seedance API 用法 |
+| `reference/anthropic/` | Anthropic 官方 API 参考存档 |
+| `reference/openai/` | OpenAI 官方 API 参考存档 |
+| `reference/volcengine/` | 火山方舟 官方 API 参考存档 |

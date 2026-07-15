@@ -13,8 +13,10 @@ import (
 
 	"github.com/code-koan/llm-sdk-go/config"
 	"github.com/code-koan/llm-sdk-go/errors"
+	"github.com/code-koan/llm-sdk-go/internal/generateid"
 	"github.com/code-koan/llm-sdk-go/internal/testutil"
 	"github.com/code-koan/llm-sdk-go/providers"
+	"github.com/code-koan/llm-sdk-go/providers/openai"
 )
 
 func TestNew(t *testing.T) {
@@ -676,36 +678,31 @@ func TestGenerateID(t *testing.T) {
 	t.Run("has correct prefix", func(t *testing.T) {
 		t.Parallel()
 
-		id, err := generateID(idPrefixCompletion)
-		require.NoError(t, err)
+		id := generateid.New(idPrefixCompletion)
 		require.True(t, strings.HasPrefix(id, idPrefixCompletion))
 	})
 
 	t.Run("generates unique IDs", func(t *testing.T) {
 		t.Parallel()
 
-		id1, err := generateID(idPrefixToolCall)
-		require.NoError(t, err)
-		id2, err := generateID(idPrefixToolCall)
-		require.NoError(t, err)
+		id1 := generateid.New(idPrefixToolCall)
+		id2 := generateid.New(idPrefixToolCall)
 		require.NotEqual(t, id1, id2)
 	})
 
 	t.Run("has expected length", func(t *testing.T) {
 		t.Parallel()
 
-		id, err := generateID("test-")
-		require.NoError(t, err)
-		// prefix (5) + 24 hex chars (12 bytes) = 29.
-		require.Len(t, id, 29)
+		id := generateid.New("test-")
+		// prefix + "-" + nano + "-" + 16 hex chars
+		require.Len(t, id, 42)
 	})
 }
 
 func TestNewStreamState(t *testing.T) {
 	t.Parallel()
 
-	state, err := newStreamState("gemini-1.5-flash")
-	require.NoError(t, err)
+	state := newStreamState("gemini-1.5-flash")
 	require.NotNil(t, state)
 	require.Equal(t, "gemini-1.5-flash", state.model)
 	require.True(t, strings.HasPrefix(state.messageID, idPrefixCompletion))
@@ -984,8 +981,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 	t.Run("processes text content", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{{
 				Content: &genai.Content{
@@ -1004,8 +1000,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 	t.Run("processes thinking content", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{{
 				Content: &genai.Content{
@@ -1024,8 +1019,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 	t.Run("processes function call", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{{
 				Content: &genai.Content{
@@ -1050,8 +1044,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 	t.Run("tracks usage metadata", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		resp := &genai.GenerateContentResponse{
 			UsageMetadata: &genai.GenerateContentResponseUsageMetadata{
 				PromptTokenCount:     10,
@@ -1064,7 +1057,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 			}},
 		}
 
-		_, err = state.processResponse(resp)
+		_, err := state.processResponse(resp)
 		require.NoError(t, err)
 		require.NotNil(t, state.usage)
 		require.Equal(t, 10, state.usage.PromptTokens)
@@ -1075,8 +1068,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 	t.Run("captures thought signature on function call", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{{
 				Content: &genai.Content{
@@ -1112,8 +1104,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 	t.Run("no thought signature leaves Extra nil", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{{
 				Content: &genai.Content{
@@ -1138,8 +1129,7 @@ func TestStreamStateProcessResponse(t *testing.T) {
 	t.Run("returns empty slice for empty candidates", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		resp := &genai.GenerateContentResponse{}
 
 		chunks, err := state.processResponse(resp)
@@ -1154,8 +1144,7 @@ func TestStreamStateFinalChunk(t *testing.T) {
 	t.Run("defaults to stop finish reason", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		state.finishReason = genai.FinishReasonStop
 
 		chunk := state.finalChunk()
@@ -1165,8 +1154,7 @@ func TestStreamStateFinalChunk(t *testing.T) {
 	t.Run("uses tool_calls when tool calls present", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		state.finishReason = genai.FinishReasonStop
 		state.toolCalls = []providers.ToolCall{
 			{ID: "call_1", Type: "function", Function: providers.FunctionCall{Name: "get_weather"}},
@@ -1179,8 +1167,7 @@ func TestStreamStateFinalChunk(t *testing.T) {
 	t.Run("uses max_tokens finish reason", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		state.finishReason = genai.FinishReasonMaxTokens
 
 		chunk := state.finalChunk()
@@ -1190,8 +1177,7 @@ func TestStreamStateFinalChunk(t *testing.T) {
 	t.Run("includes usage", func(t *testing.T) {
 		t.Parallel()
 
-		state, err := newStreamState("test-model")
-		require.NoError(t, err)
+		state := newStreamState("test-model")
 		state.usage = &providers.Usage{PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15}
 
 		chunk := state.finalChunk()
@@ -1221,7 +1207,7 @@ func TestConvertResponse(t *testing.T) {
 
 		result, err := convertResponse(resp, "gemini-1.5-flash")
 		require.NoError(t, err)
-		require.Equal(t, objectChatCompletion, result.Object)
+		require.Equal(t, openai.ObjectChatCompletion, result.Object)
 		require.Equal(t, "gemini-1.5-flash", result.Model)
 		require.Len(t, result.Choices, 1)
 		require.Equal(t, "Hello World", result.Choices[0].Message.ContentString())
@@ -1355,7 +1341,7 @@ func TestIntegrationCompletion(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, resp.ID)
-	require.Equal(t, objectChatCompletion, resp.Object)
+	require.Equal(t, openai.ObjectChatCompletion, resp.Object)
 	require.Len(t, resp.Choices, 1)
 	require.NotEmpty(t, resp.Choices[0].Message.Content)
 	require.Equal(t, providers.RoleAssistant, resp.Choices[0].Message.Role)
@@ -1411,7 +1397,7 @@ func TestIntegrationCompletionStream(t *testing.T) {
 
 	for chunk := range chunks {
 		chunkCount++
-		require.Equal(t, objectChatCompletionChunk, chunk.Object)
+		require.Equal(t, openai.ObjectChatCompletionChunk, chunk.Object)
 		if len(chunk.Choices) > 0 {
 			content.WriteString(chunk.Choices[0].Delta.Content)
 		}
@@ -1470,10 +1456,10 @@ func TestIntegrationEmbedding(t *testing.T) {
 	resp, err := provider.Embedding(ctx, params)
 	require.NoError(t, err)
 
-	require.Equal(t, objectList, resp.Object)
+	require.Equal(t, openai.ObjectList, resp.Object)
 	require.NotEmpty(t, resp.Data)
 	require.NotEmpty(t, resp.Data[0].Embedding)
-	require.Equal(t, objectEmbedding, resp.Data[0].Object)
+	require.Equal(t, openai.ObjectEmbedding, resp.Data[0].Object)
 }
 
 func TestIntegrationListModels(t *testing.T) {
@@ -1490,13 +1476,13 @@ func TestIntegrationListModels(t *testing.T) {
 	resp, err := provider.ListModels(ctx)
 	require.NoError(t, err)
 
-	require.Equal(t, objectList, resp.Object)
+	require.Equal(t, openai.ObjectList, resp.Object)
 	require.NotEmpty(t, resp.Data)
 
 	// Verify model structure.
 	for _, model := range resp.Data {
 		require.NotEmpty(t, model.ID)
-		require.Equal(t, objectModel, model.Object)
+		require.Equal(t, openai.ObjectModel, model.Object)
 		require.Equal(t, "google", model.OwnedBy)
 	}
 }

@@ -37,30 +37,81 @@ llm-sdk-go 的核心目标只有三个：
 
 ## 开发流程（CRITICAL — 严格执行顺序）
 
-### Step 0：环境检查
+### Layer 0：环境检查
 
 ```
 □ git status --short          → 确认已有改动归属，避免覆盖用户工作
 □ git branch --show-current   → 确认当前分支与 issue / 任务一致
-□ make build 或 go test ./...  → 必要时确认基线是否可用
+□ just build 或 go test ./...  → 必要时确认基线是否可用
+□ ls /tmp/llm-sdk-session-*   → Session 任务追踪文件必须存在，否则新建
 ```
 
-### Step 1：需求确认关卡
+### Layer 0.5：执行方式判断（Layer 0 之后、Layer 1 之前，不可跳过）
 
-写任何代码前：
+**判别标准**：任务可以用一句话完整描述且无歧义 → 低认知负荷。需要「理解代码再决定怎么改」→ 高认知负荷。
 
-- 阅读关联 issue / PR / 用户描述，提取所有验收点。
-- 判断是否影响公共接口、Provider 行为、错误语义、流式协议、文档示例。
-- 调研参考实现，优先对齐 `providers/anthropic/` 和 `providers/openai/` 的现有模式。
-- 输出简洁开发计划；若是多文件或公共 API 变更，必须等用户明确确认后再写代码。
+| 认知负荷 | 任务特征 | 执行方式 | Agent（如派发） |
+|---------|---------|---------|---------------|
+| **低** | 机械替换、批量重命名、格式统一 | **lead sed/Edit**（不派 agent） | — |
+| **高** | 设计决策、依赖分析、同级一致性、数据流理解 | lead → 方案 → 派 agent | project-implementer |
 
-### Step 2：Provider 设计关卡 → 走 `/provider-adpter`
+**Agent 选型**（必须派发时 — 查 [.claude/_index.md](../../_index.md) agent 选型表）：
+- 代码实现 → `project-implementer`
+- 只读检索 → `Explore`
+- 代码审查 → `project-reviewer`
 
-### Step 3：实现顺序 → Provider 相关走 `/provider-adpter`，通用代码按依赖从底到上推进
+**已验证**：Agent 面对大量重复 Edit 会走捷径（正则/批处理）→ 产生破损输出。>3 处纯文本替换 = lead sed，不派 agent。
 
-### Step 4：Issue/PR 留痕
+### Layer 1：方案设计 — 标准模式
 
-- 开发计划确认后，如有关联 issue，使用 `gh issue comment <issue> --body "..."` 留下计划摘要。
+新功能、公共 API 变更、跨包变更走此模式：
+
+1. **/speckit-specify** → `specs/{feature}/spec.md`
+   - 阅读 issue/用户描述，提取 FR（FR-###）+ SC（SC-###），标记 ≤3 个模糊点
+2. **/speckit-clarify** → 逐一澄清模糊点，更新 spec.md
+3. **/speckit-plan** → `plan.md` + `data-model.md` + `contracts/`
+   - Phase 0 调研 → Phase 1 设计 → 生成技术方案
+4. **plan vs sdk-architecture 边界校验**（NON-NEGOTIABLE）
+   - 对照 [sdk-architecture](../sdk-architecture/SKILL.md) 包边界表逐行验证
+   - 违反边界 → 修改方案 → 重新验证
+5. **Ponytail 最小化审视** — 这个功能真的需要？已有可复用？一行能搞定？
+6. **用户确认 gate** — 输出方案摘要，等用户确认后再进入实现
+
+### Layer 1 轻量模式：bug修复/重构
+
+- 范围确认 + 同级扫描（同 pattern 所有位置）
+- 一句话方案（不写 specs/，不走 speckit）
+- 根因修复后直接进入 Layer 2
+
+### Layer 2：并发执行
+
+1. **/speckit-tasks** → `specs/{feature}/tasks.md`
+   - 依赖排序，[P] 标记可并行任务
+2. **派发 project-implementer** 逐 task 执行
+   - Wave 0（串行）: 主流程确认公共接口、Provider 边界、测试策略
+   - Wave 1（并行）: conversion/helpers、streaming、error mapping、docs/tests 独立文件组
+   - 主流程聚合: 读取关键实现，确认接口一致性和测试意图
+   - Wave 2（串行）: gofmt + build + test + lint + 文档核对
+3. **Provider 实现** → 委托 [provider-adpter](../provider-adpter/SKILL.md) 工作流
+4. **Lead review 每个 agent** — 读取关键文件，跑验证命令
+
+### 合入 Gate（严格顺序执行）
+
+```
+A. lead 预验证 — 读取关键实现文件，确认与 spec/plan 一致
+B1. /project-reviewer — 四维审查：Provider合规/质量/同级复用/极简性
+B2. review 结果分流 — ≤3分阻断，修复后重审；≥4分继续
+B3. /speckit-converge — 对照 spec/plan/tasks 检查代码库，追加差距到 tasks.md
+B4. 终验 — build + test + lint 全部通过
+B5. graphify update . — 保持知识图谱最新
+B6. index-md check — 新增/修改的 skill/agent 同步 _index.md
+B7. gh pr create — PR body 关联 issue，说明公共 API 影响
+B8. /reflecting — 六层反思：情景学习→经验捕获→文档沉淀→基础设施审视
+```
+
+### Issue/PR 留痕
+
+- 方案确认后，如有关联 issue，使用 `gh issue comment <issue> --body "..."` 留下计划摘要。
 - PR body 必须关联 issue，说明公共 API 影响、Provider 兼容策略、测试覆盖和无法本地验证的外部依赖。
 
 ## Provider 实现
@@ -99,10 +150,12 @@ llm-sdk-go 的核心目标只有三个：
 ## 开发闭环检查表（按顺序执行）
 
 ```
+□ spec/plan/tasks 收敛检查（speckit-converge 无差距）
+□ graphify update .（如有代码变更）
 □ gofmt -w <changed_go_files>
-□ make build
-□ make test-only
-□ make lint 或 make test
+□ just build
+□ just test-only
+□ just lint 或 just test
 □ 文档更新已完成
 □ git diff --check
 □ PR / issue 留痕已完成（如适用）

@@ -1,1 +1,4 @@
 - [feedback memory must be committed to repo](feedback_memory-commit-discipline.md) — feedback memory 必须同步到仓库 .claude/memory/ 并提交 GitHub
+- [subagent-implementation-not-planning](subagent-implementation-not-planning.md) — agent 默认产出 plan 而非代码：prompt 第一行必须写 IMPLEMENTATION TASK
+- [subagent-output-verification](subagent-output-verification.md) — agent 输出必须跑 `go build && go test -race` 再验收
+- [feedback-delegate-to-subagents](feedback-delegate-to-subagents.md) — 派 agent 决策表：机械替换 = lead sed，不派 agent

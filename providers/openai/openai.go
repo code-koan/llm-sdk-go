@@ -12,6 +12,14 @@ const (
 	providerName   = "openai"
 )
 
+var defaultConfig = AdapterConfig{
+	APIKeyEnvVar:   envAPIKey,
+	DefaultBaseURL: defaultBaseURL,
+	Name:           providerName,
+	RequireAPIKey:  true,
+	Capabilities:   capabilities(),
+}
+
 // Ensure Provider implements the required interfaces.
 var (
 	_ providers.CapabilityProvider = (*Provider)(nil)
@@ -22,25 +30,19 @@ var (
 )
 
 // Provider implements the providers.Provider interface for OpenAI.
-// It embeds CompatibleProvider which handles the OpenAI SDK integration.
+// It embeds Adapter which handles the OpenAI SDK integration.
 type Provider struct {
-	*CompatibleProvider
+	*Adapter
 }
 
 // New creates a new OpenAI provider.
 func New(opts ...config.Option) (*Provider, error) {
-	base, err := NewCompatible(CompatibleConfig{
-		APIKeyEnvVar:   envAPIKey,
-		Capabilities:   capabilities(),
-		DefaultBaseURL: defaultBaseURL,
-		Name:           providerName,
-		RequireAPIKey:  true,
-	}, opts...)
+	a, err := defaultConfig.Build(opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Provider{CompatibleProvider: base}, nil
+	return &Provider{a}, nil
 }
 
 // NewChatModel creates a ChatModel configured with the given capabilities.

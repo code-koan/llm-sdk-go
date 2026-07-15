@@ -26,13 +26,6 @@ const (
 	base64Prefix   = "base64,"
 )
 
-// Object type constants.
-const (
-	objectChatCompletion      = "chat.completion"
-	objectChatCompletionChunk = "chat.completion.chunk"
-	objectList                = "list"
-)
-
 // Ensure Provider implements the required interfaces.
 var (
 	_ providers.CapabilityProvider = (*Provider)(nil)

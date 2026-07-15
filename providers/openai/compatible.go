@@ -1,5 +1,5 @@
 // Package openai provides an OpenAI provider implementation for llm-sdk.
-// It also exports a base provider for other OpenAI-compatible services.
+// It also exports a base adapter for other OpenAI-compatible services.
 package openai
 
 import (
@@ -9,6 +9,7 @@ import (
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/shared"
 
 	"github.com/code-koan/llm-sdk-go/config"
@@ -28,17 +29,17 @@ const (
 
 // Object type constants.
 const (
-	objectChatCompletion      = "chat.completion"
-	objectChatCompletionChunk = "chat.completion.chunk"
-	objectEmbedding           = "embedding"
-	objectList                = "list"
-	objectModel               = "model"
+	ObjectChatCompletion      = "chat.completion"
+	ObjectChatCompletionChunk = "chat.completion.chunk"
+	ObjectEmbedding           = "embedding"
+	ObjectList                = "list"
+	ObjectModel               = "model"
 )
 
 // Response format types.
 const (
-	responseFormatJSONObject = "json_object"
-	responseFormatJSONSchema = "json_schema"
+	ResponseFormatJSONObject = "json_object"
+	ResponseFormatJSONSchema = "json_schema"
 )
 
 // standardFieldNames are the standard chat completion request field names that
@@ -62,9 +63,9 @@ var standardFieldNames = map[string]bool{
 	"user":                  true,
 }
 
-// CompatibleConfig contains the configuration for an OpenAI-compatible provider.
+// AdapterConfig contains the configuration for an OpenAI-protocol adapter.
 // Fields are ordered alphabetically.
-type CompatibleConfig struct {
+type AdapterConfig struct {
 	// APIKeyEnvVar is the environment variable for the API key.
 	APIKeyEnvVar string
 
@@ -95,46 +96,46 @@ type CompatibleConfig struct {
 	RequireAPIKey bool
 }
 
-// Ensure CompatibleProvider implements the required interfaces.
+// Ensure Adapter implements the required interfaces.
 var (
-	_ providers.CapabilityProvider = (*CompatibleProvider)(nil)
-	_ providers.EmbeddingProvider  = (*CompatibleProvider)(nil)
-	_ providers.ErrorConverter     = (*CompatibleProvider)(nil)
-	_ providers.ModelLister        = (*CompatibleProvider)(nil)
-	_ providers.Provider           = (*CompatibleProvider)(nil)
+	_ providers.CapabilityProvider = (*Adapter)(nil)
+	_ providers.EmbeddingProvider  = (*Adapter)(nil)
+	_ providers.ErrorConverter     = (*Adapter)(nil)
+	_ providers.ModelLister        = (*Adapter)(nil)
+	_ providers.Provider           = (*Adapter)(nil)
 )
 
-// CompatibleProvider implements the providers.Provider interface for OpenAI-compatible APIs.
+// Adapter implements the providers.Provider interface for OpenAI-protocol APIs.
 // It can be embedded by other providers that use OpenAI-compatible endpoints.
-type CompatibleProvider struct {
-	compatibleConfig CompatibleConfig
-	client           openai.Client
-	cfg              *config.Config
+type Adapter struct {
+	adapterConfig AdapterConfig
+	client        openai.Client
+	cfg           *config.Config
 }
 
-// NewCompatible creates a new OpenAI-compatible provider.
-func NewCompatible(compatCfg CompatibleConfig, opts ...config.Option) (*CompatibleProvider, error) {
+// NewAdapter creates a new OpenAI-protocol adapter.
+func NewAdapter(adapterCfg AdapterConfig, opts ...config.Option) (*Adapter, error) {
 	cfg, err := config.New(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("invalid options: %w", err)
 	}
 
-	if validErr := validateCompatibleConfig(compatCfg); validErr != nil {
+	if validErr := validateAdapterConfig(adapterCfg); validErr != nil {
 		return nil, validErr
 	}
 
-	baseURL, err := cfg.ResolveBaseURL(compatCfg.BaseURLEnvVar, compatCfg.DefaultBaseURL)
+	baseURL, err := cfg.ResolveBaseURL(adapterCfg.BaseURLEnvVar, adapterCfg.DefaultBaseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	apiKey := resolveAPIKey(cfg, compatCfg)
+	apiKey := resolveAPIKey(cfg, adapterCfg)
 
-	if apiKey == "" && compatCfg.RequireAPIKey {
-		return nil, errors.NewMissingAPIKeyError(compatCfg.Name, compatCfg.APIKeyEnvVar)
+	if apiKey == "" && adapterCfg.RequireAPIKey {
+		return nil, errors.NewMissingAPIKeyError(adapterCfg.Name, adapterCfg.APIKeyEnvVar)
 	}
 	if apiKey == "" {
-		apiKey = compatCfg.DefaultAPIKey
+		apiKey = adapterCfg.DefaultAPIKey
 	}
 
 	clientOpts := []option.RequestOption{
@@ -146,34 +147,46 @@ func NewCompatible(compatCfg CompatibleConfig, opts ...config.Option) (*Compatib
 		clientOpts = append(clientOpts, option.WithBaseURL(baseURL))
 	}
 
-	return &CompatibleProvider{
-		compatibleConfig: compatCfg,
-		client:           openai.NewClient(clientOpts...),
-		cfg:              cfg,
+	return &Adapter{
+		adapterConfig: adapterCfg,
+		client:        openai.NewClient(clientOpts...),
+		cfg:           cfg,
 	}, nil
 }
 
-// NewChatModelFromCompatible creates a ChatModel for OpenAI-compatible providers.
+// Build creates an Adapter from the config. Convenience method so thin wrappers
+// don't have to import and call NewAdapter directly.
+func (c AdapterConfig) Build(opts ...config.Option) (*Adapter, error) {
+	return NewAdapter(c, opts...)
+}
+
+// NewChatModelFromAdapter creates a ChatModel for OpenAI-protocol providers.
 // This is a convenience for thin-wrapper providers (DeepSeek, Groq, Mistral, etc.).
-func NewChatModelFromCompatible(
-	cfg CompatibleConfig,
+func NewChatModelFromAdapter(
+	cfg AdapterConfig,
 	modelID string,
 	modelOpts ...providers.ModelOption,
 ) (*providers.ChatModel, error) {
-	p, err := NewCompatible(cfg)
+	p, err := NewAdapter(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return providers.NewChatModel(p, modelID, modelOpts...)
 }
 
+// BuildChatModel creates a ChatModel from the config. Convenience method so thin
+// wrappers don't have to import and call NewChatModelFromAdapter directly.
+func (c AdapterConfig) BuildChatModel(modelID string, opts ...providers.ModelOption) (*providers.ChatModel, error) {
+	return NewChatModelFromAdapter(c, modelID, opts...)
+}
+
 // Capabilities returns the provider's capabilities.
-func (p *CompatibleProvider) Capabilities() providers.Capabilities {
-	return p.compatibleConfig.Capabilities
+func (p *Adapter) Capabilities() providers.Capabilities {
+	return p.adapterConfig.Capabilities
 }
 
 // Completion performs a chat completion request.
-func (p *CompatibleProvider) Completion(
+func (p *Adapter) Completion(
 	ctx context.Context,
 	params providers.CompletionParams,
 ) (*providers.ChatCompletion, error) {
@@ -181,13 +194,13 @@ func (p *CompatibleProvider) Completion(
 		return nil, err
 	}
 
-	if err := validateExtraFields(params.Extra, p.compatibleConfig.Name); err != nil {
+	if err := validateExtraFields(params.Extra, p.adapterConfig.Name); err != nil {
 		return nil, err
 	}
 
 	log := p.cfg.Logger()
 	log.Debug("Completion request",
-		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "provider", Value: p.adapterConfig.Name},
 		config.Field{Key: "model", Value: params.Model},
 		config.Field{Key: "message_count", Value: len(params.Messages)},
 		config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
@@ -195,15 +208,15 @@ func (p *CompatibleProvider) Completion(
 	)
 
 	req := convertParams(params, p.cfg.DefaultUser)
-	if p.compatibleConfig.ChatCompletionRequestTransform != nil {
-		p.compatibleConfig.ChatCompletionRequestTransform(&req)
+	if p.adapterConfig.ChatCompletionRequestTransform != nil {
+		p.adapterConfig.ChatCompletionRequestTransform(&req)
 	}
 
 	opts := optionsFromParams(params)
 	resp, err := p.client.Chat.Completions.New(ctx, req, opts...)
 	if err != nil {
 		log.Debug("Completion error",
-			config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+			config.Field{Key: "provider", Value: p.adapterConfig.Name},
 			config.Field{Key: "model", Value: params.Model},
 			config.Field{Key: "error", Value: err.Error()},
 		)
@@ -213,7 +226,7 @@ func (p *CompatibleProvider) Completion(
 	result := convertResponse(resp)
 
 	log.Debug("Completion response",
-		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "provider", Value: p.adapterConfig.Name},
 		config.Field{Key: "model", Value: result.Model},
 		config.Field{Key: "finish_reason", Value: result.Choices[0].FinishReason},
 		config.Field{Key: "prompt_tokens", Value: result.Usage.PromptTokens},
@@ -225,7 +238,7 @@ func (p *CompatibleProvider) Completion(
 }
 
 // CompletionStream performs a streaming chat completion request.
-func (p *CompatibleProvider) CompletionStream(
+func (p *Adapter) CompletionStream(
 	ctx context.Context,
 	params providers.CompletionParams,
 ) (<-chan providers.ChatCompletionChunk, <-chan error) {
@@ -234,7 +247,7 @@ func (p *CompatibleProvider) CompletionStream(
 
 	// Validate Extra fields before spawning goroutine to avoid
 	// spawning a goroutine just to immediately fail.
-	if err := validateExtraFields(params.Extra, p.compatibleConfig.Name); err != nil {
+	if err := validateExtraFields(params.Extra, p.adapterConfig.Name); err != nil {
 		errs <- err
 		close(chunks)
 		return chunks, errs
@@ -251,7 +264,7 @@ func (p *CompatibleProvider) CompletionStream(
 
 		log := p.cfg.Logger()
 		log.Debug("CompletionStream request",
-			config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+			config.Field{Key: "provider", Value: p.adapterConfig.Name},
 			config.Field{Key: "model", Value: params.Model},
 			config.Field{Key: "message_count", Value: len(params.Messages)},
 			config.Field{Key: "has_tools", Value: len(params.Tools) > 0},
@@ -259,8 +272,8 @@ func (p *CompatibleProvider) CompletionStream(
 		)
 
 		req := convertParams(params, p.cfg.DefaultUser)
-		if p.compatibleConfig.ChatCompletionRequestTransform != nil {
-			p.compatibleConfig.ChatCompletionRequestTransform(&req)
+		if p.adapterConfig.ChatCompletionRequestTransform != nil {
+			p.adapterConfig.ChatCompletionRequestTransform(&req)
 		}
 		opts := optionsFromParams(params)
 		stream := p.client.Chat.Completions.NewStreaming(ctx, req, opts...)
@@ -286,7 +299,7 @@ func (p *CompatibleProvider) CompletionStream(
 
 		if err := stream.Err(); err != nil {
 			log.Debug("CompletionStream error",
-				config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+				config.Field{Key: "provider", Value: p.adapterConfig.Name},
 				config.Field{Key: "model", Value: params.Model},
 				config.Field{Key: "error", Value: err.Error()},
 			)
@@ -295,7 +308,7 @@ func (p *CompatibleProvider) CompletionStream(
 		}
 
 		fields := []config.Field{
-			{Key: "provider", Value: p.compatibleConfig.Name},
+			{Key: "provider", Value: p.adapterConfig.Name},
 			{Key: "model", Value: lastModel},
 			{Key: "stream", Value: true},
 		}
@@ -312,14 +325,14 @@ func (p *CompatibleProvider) CompletionStream(
 	return chunks, errs
 }
 
-// ConvertError converts OpenAI-compatible errors to unified error types.
+// ConvertError converts OpenAI-protocol errors to unified error types.
 // Implements providers.ErrorConverter.
-func (p *CompatibleProvider) ConvertError(err error) error {
+func (p *Adapter) ConvertError(err error) error {
 	if err == nil {
 		return nil
 	}
 
-	name := p.compatibleConfig.Name
+	name := p.adapterConfig.Name
 
 	// Check for OpenAI API error type.
 	var apiErr *openai.Error
@@ -334,13 +347,13 @@ func (p *CompatibleProvider) ConvertError(err error) error {
 }
 
 // Embedding generates embeddings for the given input.
-func (p *CompatibleProvider) Embedding(
+func (p *Adapter) Embedding(
 	ctx context.Context,
 	params providers.EmbeddingParams,
 ) (*providers.EmbeddingResponse, error) {
 	log := p.cfg.Logger()
 	log.Debug("Embedding request",
-		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "provider", Value: p.adapterConfig.Name},
 		config.Field{Key: "model", Value: params.Model},
 	)
 
@@ -349,7 +362,7 @@ func (p *CompatibleProvider) Embedding(
 	resp, err := p.client.Embeddings.New(ctx, req)
 	if err != nil {
 		log.Debug("Embedding error",
-			config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+			config.Field{Key: "provider", Value: p.adapterConfig.Name},
 			config.Field{Key: "model", Value: params.Model},
 			config.Field{Key: "error", Value: err.Error()},
 		)
@@ -359,7 +372,7 @@ func (p *CompatibleProvider) Embedding(
 	result := convertEmbeddingResponse(resp)
 
 	log.Debug("Embedding response",
-		config.Field{Key: "provider", Value: p.compatibleConfig.Name},
+		config.Field{Key: "provider", Value: p.adapterConfig.Name},
 		config.Field{Key: "model", Value: result.Model},
 		config.Field{Key: "prompt_tokens", Value: result.Usage.PromptTokens},
 		config.Field{Key: "total_tokens", Value: result.Usage.TotalTokens},
@@ -369,7 +382,7 @@ func (p *CompatibleProvider) Embedding(
 }
 
 // ListModels returns a list of available models.
-func (p *CompatibleProvider) ListModels(ctx context.Context) (*providers.ModelsResponse, error) {
+func (p *Adapter) ListModels(ctx context.Context) (*providers.ModelsResponse, error) {
 	resp, err := p.client.Models.List(ctx)
 	if err != nil {
 		return nil, p.ConvertError(err)
@@ -379,21 +392,31 @@ func (p *CompatibleProvider) ListModels(ctx context.Context) (*providers.ModelsR
 	for _, model := range resp.Data {
 		models = append(models, providers.Model{
 			ID:      model.ID,
-			Object:  objectModel,
+			Object:  ObjectModel,
 			Created: model.Created,
 			OwnedBy: string(model.OwnedBy),
 		})
 	}
 
 	return &providers.ModelsResponse{
-		Object: objectList,
+		Object: ObjectList,
 		Data:   models,
 	}, nil
 }
 
 // Name returns the provider name.
-func (p *CompatibleProvider) Name() string {
-	return p.compatibleConfig.Name
+func (p *Adapter) Name() string {
+	return p.adapterConfig.Name
+}
+
+// SwapMaxTokens handles providers that use max_tokens instead of
+// max_completion_tokens (e.g., DeepSeek, Mistral).
+// Use as a ChatCompletionRequestTransform.
+func SwapMaxTokens(req *openai.ChatCompletionNewParams) {
+	if req.MaxCompletionTokens.Valid() {
+		req.MaxTokens = openai.Int(req.MaxCompletionTokens.Value)
+	}
+	req.MaxCompletionTokens = param.Opt[int64]{}
 }
 
 // convertAPIError converts an OpenAI API error to a unified error type.
@@ -507,7 +530,7 @@ func convertChunk(chunk *openai.ChatCompletionChunk) providers.ChatCompletionChu
 
 	result := providers.ChatCompletionChunk{
 		ID:                chunk.ID,
-		Object:            objectChatCompletionChunk,
+		Object:            ObjectChatCompletionChunk,
 		Created:           chunk.Created,
 		Model:             chunk.Model,
 		Choices:           choices,
@@ -579,14 +602,14 @@ func convertEmbeddingResponse(resp *openai.CreateEmbeddingResponse) *providers.E
 		embedding := make([]float64, len(d.Embedding))
 		copy(embedding, d.Embedding)
 		data = append(data, providers.EmbeddingData{
-			Object:    objectEmbedding,
+			Object:    ObjectEmbedding,
 			Embedding: embedding,
 			Index:     int(d.Index),
 		})
 	}
 
 	result := &providers.EmbeddingResponse{
-		Object: objectList,
+		Object: ObjectList,
 		Data:   data,
 		Model:  resp.Model,
 	}
@@ -726,7 +749,7 @@ func convertResponse(resp *openai.ChatCompletion) *providers.ChatCompletion {
 
 	result := &providers.ChatCompletion{
 		ID:                resp.ID,
-		Object:            objectChatCompletion,
+		Object:            ObjectChatCompletion,
 		Created:           resp.Created,
 		Model:             resp.Model,
 		Choices:           choices,
@@ -757,11 +780,11 @@ func convertResponseFormat(format *providers.ResponseFormat) openai.ChatCompleti
 	}
 
 	switch format.Type {
-	case responseFormatJSONObject:
+	case ResponseFormatJSONObject:
 		return openai.ChatCompletionNewParamsResponseFormatUnion{
 			OfJSONObject: &openai.ResponseFormatJSONObjectParam{},
 		}
-	case responseFormatJSONSchema:
+	case ResponseFormatJSONSchema:
 		if format.JSONSchema != nil {
 			strict := format.JSONSchema.Strict != nil && *format.JSONSchema.Strict
 			return openai.ChatCompletionNewParamsResponseFormatUnion{
@@ -883,15 +906,15 @@ func convertUserMessage(msg providers.Message) openai.ChatCompletionMessageParam
 }
 
 // resolveAPIKey resolves the API key from config or environment.
-func resolveAPIKey(cfg *config.Config, compatCfg CompatibleConfig) string {
-	if compatCfg.APIKeyEnvVar != "" {
-		return cfg.ResolveAPIKey(compatCfg.APIKeyEnvVar)
+func resolveAPIKey(cfg *config.Config, adapterCfg AdapterConfig) string {
+	if adapterCfg.APIKeyEnvVar != "" {
+		return cfg.ResolveAPIKey(adapterCfg.APIKeyEnvVar)
 	}
 	return cfg.APIKey
 }
 
-// validateCompatibleConfig validates the compatible provider configuration.
-func validateCompatibleConfig(cfg CompatibleConfig) error {
+// validateAdapterConfig validates the adapter configuration.
+func validateAdapterConfig(cfg AdapterConfig) error {
 	if cfg.Name == "" {
 		return fmt.Errorf("provider name is required")
 	}

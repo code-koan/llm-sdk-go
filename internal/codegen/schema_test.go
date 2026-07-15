@@ -252,7 +252,6 @@ func TestIsIntegerKind(t *testing.T) {
 	require.False(t, isIntegerKind(types.Bool))
 }
 
-
 func TestExtractEnumFromComment(t *testing.T) {
 	t.Parallel()
 	enum := extractEnumFromComment("//tool:enum a,b,c")
